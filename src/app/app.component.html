@@ -1,0 +1,91 @@
+<div class="main-container" id="container">
+    <div id="serialPort" class="right-center">
+        <div class="left-center app-card-title">serial port</div>
+        <button mat-button (click)="this.serial.listComPorts()" [disabled]="this.serial.searchPortFlag">
+            <mat-icon>login</mat-icon>
+            Open
+        </button>
+        <button mat-button (click)="closeSerial()">
+            <mat-icon>close</mat-icon>
+            Close
+        </button>
+    </div>
+
+    <div id="secData" class="app-card" *ngIf="this.serial.validPortFlag">
+        <div class="right-center app-card-toolbar">
+            <div class="left-center app-card-title">security</div>
+            <button mat-button (click)="readKeys()">
+                <mat-icon>file_download</mat-icon>
+                Read
+            </button>
+            <button mat-button (click)="wrKeys()" [disabled]="formGroup.invalid">
+                <mat-icon>file_upload</mat-icon>
+                Save
+            </button>
+        </div>
+        <!--<div class="left-center" id="linkKey">
+            <label for="linkKey" style="padding-right: 5px">Link Key:</label>
+            <input type="text" style="flex: 1 1 auto; padding: 5px">
+        </div>-->
+        <mat-form-field id="linkKey">
+            <input
+                matInput
+                [maxlength]="16"
+                placeholder="global link-key"
+                [formControl]="formGroup.get('linkKey')"
+                style="padding-left: 5px"
+            />
+            <mat-hint align="end">16 characters</mat-hint>
+            <mat-error *ngIf="formGroup.get('linkKey').invalid">{{ linkKeyErr() }}</mat-error>
+        </mat-form-field>
+        <mat-form-field id="epid">
+            <input
+                matInput
+                [maxlength]="8"
+                placeholder="epid"
+                [formControl]="formGroup.get('epid')"
+                style="padding-left: 5px"
+            />
+            <mat-hint align="end">max 8 characters</mat-hint>
+            <mat-error *ngIf="formGroup.get('epid').invalid">{{ epidErr() }}</mat-error>
+        </mat-form-field>
+    </div>
+
+    <div id="nodeData" class="app-card" *ngIf="this.serial.validPortFlag">
+        <div [ngSwitch]="partNum">
+            <app-zb-bridge *ngSwitchCase="this.globals.ZB_BRIDGE"></app-zb-bridge>
+            <app-htu21d-005 *ngSwitchCase="this.globals.HTU21D_005"></app-htu21d-005>
+            <app-bme280-007 *ngSwitchCase="this.globals.BME280_007"></app-bme280-007>
+            <app-ssr-009 *ngSwitchCase="this.globals.SSR_009"></app-ssr-009>
+            <app-actuator-010 *ngSwitchCase="this.globals.ACTUATOR_010"></app-actuator-010>
+            <app-dbl-sw-008 *ngSwitchCase="this.globals.DBL_SW_008"></app-dbl-sw-008>
+            <div *ngSwitchDefault class="center-center" style="height: 50px">--- no node data ---</div>
+        </div>
+    </div>
+    <div id="devReset" class="right-center" *ngIf="this.serial.validPortFlag">
+        <div class="left-center app-card-title">device</div>
+        <button mat-button (click)="this.serial.softwareRstReq()">
+            <mat-icon>autorenew</mat-icon>
+            Soft Reset
+        </button>
+        <button mat-button (click)="this.serial.factoryRstReq()">
+            <mat-icon>touch_app</mat-icon>
+            Factory Reset
+        </button>
+    </div>
+    <div id="logs" class="app-card">
+        <div class="right-center app-card-toolbar">
+            <div class="left-center app-card-title">logs</div>
+            <button mat-button (click)="clearLogs()">
+                <mat-icon>delete_forever</mat-icon>
+                Clear
+            </button>
+            <mat-checkbox id="cbScroll" [(ngModel)]="scrollFlag" color="primary"> autoscroll </mat-checkbox>
+        </div>
+        <div id="logList">
+            <div class="log-msg left-center" *ngFor="let msg of logs">
+                {{ msg }}
+            </div>
+        </div>
+    </div>
+</div>

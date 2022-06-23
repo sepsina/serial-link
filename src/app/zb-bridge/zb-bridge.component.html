@@ -1,0 +1,29 @@
+<div class="right-center app-card-toolbar">
+    <div class="left-center app-card-title">
+        ZB-Bridge
+    </div>
+    <button mat-button (click)="rdNodeData_0()">
+        <mat-icon>file_download</mat-icon>
+        Read
+    </button>
+    <button mat-button (click)="wrNodeData_0()" [disabled]="formGroup.invalid">
+        <mat-icon>file_upload</mat-icon>
+        Save
+    </button>
+</div>
+
+<div class="left-center">
+    <mat-form-field class="form-field" id="reportInterval">
+        <input matInput
+               id="repIntInput"
+               type="number"
+               [max]="this.maxInt"
+               [min]="this.minInt"
+               placeholder="report interval (seconds)"
+               [formControl]="formGroup.get('repInt')"
+               (ngModelChange)="onRepIntChange($event)">
+        <mat-hint align="end">{{this.minInt}} - {{this.maxInt}} seconds</mat-hint>
+        <mat-error *ngIf="formGroup.get('repInt').invalid">{{repIntErr()}}</mat-error>
+    </mat-form-field>
+</div>
+

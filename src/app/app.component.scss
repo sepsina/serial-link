@@ -1,0 +1,55 @@
+.main-container{
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  //border: solid 1px red;
+  margin: auto 5px;
+  overflow: auto;
+  gap: 5px;
+}
+#serialPort{
+  gap: 10px;
+  font-size: 0.9em;
+  border : solid 1px black;
+  margin-top: 5px;
+  border-radius: 5px;
+}
+#linkKey{
+  //border: solid blue 1px;
+  padding: 5px;
+  border-bottom: #d8d8d8 1px solid;
+}
+#epid{
+  //border: solid blue 1px;
+  padding: 5px;
+}
+#logs{
+  min-height: 250px;
+  flex: 1 1 auto;
+  overflow: auto;
+  margin-bottom: 5px;
+  border-radius: 5px;
+}
+#cbScroll{
+  padding-right: 10px;
+}
+#logList {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: auto;
+}
+.log-msg{
+  padding-left: 20px;
+  min-height: 20px;
+  font-family: Consolas;
+  font-size: 0.8em;
+  border-bottom: solid 1px #ededed;
+}
+#devReset{
+  gap: 10px;
+  font-size: 0.9em;
+  border : solid 1px black;
+  border-radius: 5px;
+}
