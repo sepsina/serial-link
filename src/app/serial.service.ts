@@ -1,7 +1,6 @@
 //'use strict';
 import {Injectable} from '@angular/core';
 import {EventsService} from './events.service';
-//import {sprintf} from 'sprintf-js';
 import {GlobalsService} from './globals.service';
 import {UtilsService} from './utils.service';
 
@@ -19,7 +18,6 @@ const SL_ESC_CHAR = 0x02;
 const SL_END_CHAR = 0x03;
 
 const SL_MSG_LOG = 0x8001;
-
 const SL_MSG_TESTPORT = 0x0a09;
 const SL_MSG_USB_CMD = 0x0a0d;
 
@@ -29,15 +27,8 @@ const USB_CMD_SOFTWARE_RESET = 0x03;
 const USB_CMD_RD_KEYS = 0x04;
 const USB_CMD_WR_KEYS = 0x05;
 const USB_CMD_RD_NODE_DATA_0 = 0x06;
-const USB_CMD_RD_NODE_DATA_1 = 0x07;
-const USB_CMD_RD_NODE_DATA_2 = 0x08;
-const USB_CMD_RD_NODE_DATA_3 = 0x09;
 const USB_CMD_WR_NODE_DATA_0 = 0x0a;
-const USB_CMD_WR_NODE_DATA_1 = 0x0b;
-const USB_CMD_WR_NODE_DATA_2 = 0x0c;
-const USB_CMD_WR_NODE_DATA_3 = 0x0d;
 const USB_CMD_READ_PART_NUM = 0x0e;
-const USB_CMD_DONE = 0x0f;
 
 const USB_CMD_STATUS_OK = 0x00;
 const USB_CMD_STATUS_FAIL = 0x01;
@@ -48,43 +39,50 @@ export interface rdKeys_t {
     epid: string;
 }
 
-const BE = false;
+export interface slMsg_t {
+    type: number;
+    data: number[];
+}
+
+//const BE = false;
+const LE = true;
 const HEAD_LEN = 5;
 const LEN_IDX = 2;
 const CRC_IDX = 4;
 
-const DBG_MSG_LEN = 20;
+//const DBG_MSG_LEN = 20;
 
 @Injectable({
     providedIn: 'root',
 })
 export class SerialService {
-    private rxState: eRxState = eRxState.E_STATE_RX_WAIT_START;
-    private crc: number;
-    private calcCRC: number;
-    private msgIdx: number;
-    private isEsc: boolean = false;
+    public searchPortFlag = false;
+    validPortFlag = false;
+    portOpenFlag = false;
+    private portIdx = 0;
+
+    private testPortTMO = null;
+    private findPortTMO = null;
+
+    private crc = 0;
+    private calcCRC = 0;
+    private msgIdx = 0;
+    private isEsc = false;
     private rxBuf = new ArrayBuffer(256);
     private rxMsg = new Uint8Array(this.rxBuf);
+    private rxState = eRxState.E_STATE_RX_WAIT_START;
 
-    private msgType: number;
-    private msgLen: number;
+    private msgType = 0;
+    private msgLen = 0;
 
-    private SerialPort;
+    private seqNum = 0;
+
     slPort: any = {};
     private comPorts = [];
-    public searchPortFlag = false;
-    //private testPortFlag: boolean = true;
-    private testPortTMO = null;
-    validPortFlag: boolean = false;
-    portOpenFlag: boolean = false;
-    private portIdx: number = 0;
+    private SerialPort = window.nw.require('chrome-apps-serialport').SerialPort;
+    private portPath = '';
+
     validPortTMO = null;
-
-    private seqNum: number = 0;
-    private slCmds = [];
-
-    now = Date.now() / 1000;
 
     trash: any;
 
@@ -93,11 +91,7 @@ export class SerialService {
         private globals: GlobalsService,
         private utils: UtilsService
     ) {
-        this.SerialPort = window.nw.require('chrome-apps-serialport').SerialPort;
-        setTimeout(() => {
-            this.slCmdsClean();
-            //this.slHostsClean();
-        }, 100);
+        // ---
     }
 
     /***********************************************************************************************
@@ -107,13 +101,26 @@ export class SerialService {
      *
      */
     ngOnDestroy() {
+        // ---
+    }
+
+    /***********************************************************************************************
+     * fn          closeComPort
+     *
+     * brief
+     *
+     */
+    closeComPort() {
         this.validPortFlag = false;
+        this.portOpenFlag = false;
         console.log('close serial port');
-        this.slPort.close((err) => {
-            if (err) {
-                console.log(`close err: ${err.message}`);
-            }
-        });
+        if (typeof this.slPort.close === 'function') {
+            this.slPort.close((err) => {
+                if (err) {
+                    console.log(`port close err: ${err.message}`);
+                }
+            });
+        }
     }
 
     /***********************************************************************************************
@@ -126,12 +133,9 @@ export class SerialService {
         this.searchPortFlag = true;
         this.validPortFlag = false;
         if (this.portOpenFlag == true) {
-            this.portOpenFlag = false;
-            this.slPort.close((err) => {
-                if (err) {
-                    console.log(`close err: ${err.message}`);
-                }
-            });
+            if (this.portOpenFlag == true) {
+                this.closeComPort();
+            }
         }
         this.SerialPort.list().then((ports) => {
             this.comPorts = ports;
@@ -142,6 +146,7 @@ export class SerialService {
                 }, 100);
             } else {
                 this.searchPortFlag = false;
+                console.log('no com ports');
             }
         });
     }
@@ -151,7 +156,7 @@ export class SerialService {
      *
      * brief
      *
-     */
+     *
     public findComPort() {
         let msg: string;
         let portOpt = {
@@ -165,12 +170,7 @@ export class SerialService {
             }
             if (this.validPortFlag == false) {
                 if (this.portOpenFlag == true) {
-                    this.portOpenFlag = false;
-                    this.slPort.close((err) => {
-                        if (err) {
-                            console.log(`close err: ${err.message}`);
-                        }
-                    });
+                    this.closeComPort();
                 }
                 let portPath = this.comPorts[this.portIdx].path;
                 msg = `testing: ${portPath}`;
@@ -217,13 +217,69 @@ export class SerialService {
             }
         }
     }
+    */
+    /***********************************************************************************************
+     * fn          findComPort
+     *
+     * brief
+     *
+     */
+    private findComPort() {
+        if (this.validPortFlag == false) {
+            if (this.portOpenFlag == true) {
+                this.closeComPort();
+            }
+            this.portPath = this.comPorts[this.portIdx].path;
+            console.log('testing: ', this.portPath.replace(/[^a-zA-Z0-9]+/g, ''));
+            let portOpt = {
+                baudrate: 115200,
+                autoOpen: false,
+            };
+            this.slPort = new this.SerialPort(this.portPath, portOpt);
+            this.slPort.on('open', () => {
+                this.slPort.on('data', (data) => {
+                    this.slOnData(data);
+                });
+            });
+            let openErr = false;
+            this.slPort.open((err) => {
+                if (err) {
+                    openErr = true;
+                    console.log(
+                        `open err on ${this.portPath.replace(/[^a-zA-Z0-9]+/g, '')}: ${err.message}`
+                    );
+                } else {
+                    this.portOpenFlag = true;
+                    this.testPortTMO = setTimeout(() => {
+                        this.testPortTMO = null;
+                        console.log('test port tmo');
+                        this.closeComPort();
+                    }, 1000);
+                    this.testPortReq();
+                }
+            });
+            this.portIdx++;
+            if (this.portIdx < this.comPorts.length) {
+                this.findPortTMO = setTimeout(
+                    () => {
+                        this.findPortTMO = null;
+                        this.findComPort();
+                    },
+                    openErr ? 200 : 2000
+                );
+            } else {
+                this.searchPortFlag = false;
+                this.findPortTMO = null;
+            }
+        }
+    }
 
     /***********************************************************************************************
      * fn          closeComPort
      *
      * brief
      *
-     */
+     *
     public closeComPort() {
         this.validPortFlag = false;
         this.events.publish('logMsg', 'close serial port');
@@ -236,7 +292,7 @@ export class SerialService {
             }
         });
     }
-
+    */
     /***********************************************************************************************
      * fn          keepAwake
      *
@@ -257,7 +313,7 @@ export class SerialService {
      *
      * brief
      *
-     */
+     *
     public slOnData(msg) {
         let msgArrayBuf = this.utils.bufToArrayBuf(msg);
         let pkt = new Uint8Array(msgArrayBuf);
@@ -331,6 +387,92 @@ export class SerialService {
             }
         });
     }
+    */
+    /***********************************************************************************************
+     * fn          slOnData
+     *
+     * brief
+     *
+     */
+    private slOnData(msg) {
+        let pkt = new Uint8Array(msg);
+        for (let i = 0; i < pkt.length; i++) {
+            let rxByte = pkt[i];
+            switch (rxByte) {
+                case SL_START_CHAR: {
+                    this.msgIdx = 0;
+                    this.isEsc = false;
+                    this.rxState = eRxState.E_STATE_RX_WAIT_TYPELSB;
+                    break;
+                }
+                case SL_ESC_CHAR: {
+                    this.isEsc = true;
+                    break;
+                }
+                case SL_END_CHAR: {
+                    if (this.crc == this.calcCRC) {
+                        let slMsg: slMsg_t = {
+                            type: this.msgType,
+                            data: Array.from(this.rxMsg).slice(0, this.msgIdx),
+                        };
+                        setTimeout(() => {
+                            this.processMsg(slMsg);
+                        }, 0);
+                    }
+                    this.rxState = eRxState.E_STATE_RX_WAIT_START;
+                    break;
+                }
+                default: {
+                    if (this.isEsc == true) {
+                        rxByte ^= 0x10;
+                        this.isEsc = false;
+                    }
+                    switch (this.rxState) {
+                        case eRxState.E_STATE_RX_WAIT_START: {
+                            // ---
+                            break;
+                        }
+                        case eRxState.E_STATE_RX_WAIT_TYPELSB: {
+                            this.msgType = rxByte;
+                            this.rxState = eRxState.E_STATE_RX_WAIT_TYPEMSB;
+                            this.calcCRC = rxByte;
+                            break;
+                        }
+                        case eRxState.E_STATE_RX_WAIT_TYPEMSB: {
+                            this.msgType += rxByte << 8;
+                            this.rxState = eRxState.E_STATE_RX_WAIT_LENLSB;
+                            this.calcCRC ^= rxByte;
+                            break;
+                        }
+                        case eRxState.E_STATE_RX_WAIT_LENLSB: {
+                            this.msgLen = rxByte;
+                            this.rxState = eRxState.E_STATE_RX_WAIT_LENMSB;
+                            this.calcCRC ^= rxByte;
+                            break;
+                        }
+                        case eRxState.E_STATE_RX_WAIT_LENMSB: {
+                            this.msgLen += rxByte << 8;
+                            this.rxState = eRxState.E_STATE_RX_WAIT_CRC;
+                            this.calcCRC ^= rxByte;
+                            break;
+                        }
+                        case eRxState.E_STATE_RX_WAIT_CRC: {
+                            this.crc = rxByte;
+                            this.rxState = eRxState.E_STATE_RX_WAIT_DATA;
+                            break;
+                        }
+                        case eRxState.E_STATE_RX_WAIT_DATA: {
+                            if (this.msgIdx < this.msgLen) {
+                                this.rxMsg[this.msgIdx++] = rxByte;
+                                this.calcCRC ^= rxByte;
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     /***********************************************************************************************
      * fn          processMsg
@@ -338,63 +480,46 @@ export class SerialService {
      * brief
      *
      */
-    private processMsg() {
+    private processMsg(msg: slMsg_t) {
+        let msgData = new Uint8Array(msg.data);
         switch (this.msgType) {
             case SL_MSG_TESTPORT: {
-                let rxView = new DataView(this.rxBuf);
-                let byteData: number;
+                let rxView = new DataView(msgData.buffer);
+                let idNum: number;
                 let msgIdx = 0;
-                let seqNum = rxView.getUint8(msgIdx++);
-                let cmdIdx = this.slCmds.findIndex((slCmd) => {
-                    return slCmd.seqNum == seqNum;
-                });
-                if (cmdIdx > -1) {
-                    let slCmd: any = this.slCmds.splice(cmdIdx, 1)[0];
-                    if (slCmd.cmdID != SL_MSG_TESTPORT) {
-                        return;
-                    }
-                    byteData = rxView.getUint8(msgIdx++);
-                    if (byteData == 0x10) {
-                        byteData = rxView.getUint8(msgIdx++);
-                        if (byteData == 0x01) {
-                            byteData = rxView.getUint8(msgIdx++);
-                            if (byteData == 0x19) {
-                                byteData = rxView.getUint8(msgIdx++);
-                                if (byteData == 0x67) {
-                                    clearTimeout(this.testPortTMO);
-                                    this.testPortTMO = null;
-                                    this.validPortFlag = true;
-                                    this.searchPortFlag = false;
-                                    setTimeout(() => {
-                                        this.readPartNum();
-                                    }, 1000);
-                                    let msg = `valid device on ${this.comPorts[this.portIdx].path}`;
-                                    this.events.publish('logMsg', msg);
-                                    console.log(msg);
-                                }
-                            }
+                let msgSeqNum = rxView.getUint8(msgIdx++);
+                if (msgSeqNum == this.seqNum) {
+                    idNum = rxView.getUint32(msgIdx, LE);
+                    msgIdx += 4;
+                    if (idNum === 0x67190110) {
+                        if (this.testPortTMO) {
+                            clearTimeout(this.testPortTMO);
+                            this.testPortTMO = null;
+                            this.validPortFlag = true;
+                            this.searchPortFlag = false;
+                            setTimeout(() => {
+                                this.readPartNum();
+                            }, 1000);
+                            let msg = `valid device on ${this.portPath.replace(
+                                /[^a-zA-Z0-9]+/g,
+                                ''
+                            )}`;
+                            this.events.publish('logMsg', msg);
+                            console.log(msg);
                         }
                     }
                 }
                 break;
             }
-
             case SL_MSG_USB_CMD: {
-                let slMsg = new DataView(this.rxBuf);
-                let idx = 0;
-                let seqNum = slMsg.getUint8(idx++);
-                let cmdIdx = this.slCmds.findIndex((slCmd) => {
-                    return slCmd.seqNum == seqNum;
-                });
-                if (cmdIdx > -1) {
-                    let slCmd: any = this.slCmds.splice(cmdIdx, 1)[0];
-                    if (slCmd.cmdID != SL_MSG_USB_CMD) {
-                        return;
-                    }
-                    let cmdID = slMsg.getUint8(idx++);
+                let slMsg = new DataView(msgData.buffer);
+                let msgIdx = 0;
+                let msgSeqNum = slMsg.getUint8(msgIdx++);
+                if (msgSeqNum == this.seqNum) {
+                    let cmdID = slMsg.getUint8(msgIdx++);
                     switch (cmdID) {
                         case USB_CMD_KEEP_AWAKE: {
-                            let status = slMsg.getUint8(idx++);
+                            let status = slMsg.getUint8(msgIdx++);
                             if (status == USB_CMD_STATUS_OK) {
                                 console.log('keep awake ok');
                             }
@@ -404,7 +529,7 @@ export class SerialService {
                             break;
                         }
                         case USB_CMD_RD_KEYS: {
-                            let status = slMsg.getUint8(idx++);
+                            let status = slMsg.getUint8(msgIdx++);
                             if (status == USB_CMD_STATUS_OK) {
                                 let rdKeysRsp = {} as rdKeys_t;
                                 rdKeysRsp.status = USB_CMD_STATUS_OK;
@@ -412,7 +537,7 @@ export class SerialService {
                                 let chrCode = 0;
                                 let linkKey = '';
                                 for (i = 0; i < 16; i++) {
-                                    chrCode = slMsg.getUint8(idx++);
+                                    chrCode = slMsg.getUint8(msgIdx++);
                                     if (chrCode != 0) {
                                         linkKey += String.fromCharCode(chrCode);
                                     }
@@ -420,7 +545,7 @@ export class SerialService {
                                 rdKeysRsp.linkKey = linkKey;
                                 let epid = '';
                                 for (i = 0; i < 8; i++) {
-                                    chrCode = slMsg.getUint8(idx++);
+                                    chrCode = slMsg.getUint8(msgIdx++);
                                     if (chrCode != 0) {
                                         epid += String.fromCharCode(chrCode);
                                     }
@@ -434,16 +559,16 @@ export class SerialService {
                             break;
                         }
                         case USB_CMD_RD_NODE_DATA_0: {
-                            let dataLen = slMsg.getUint8(idx++);
+                            let dataLen = slMsg.getUint8(msgIdx++);
                             let nodeData = new Uint8Array(dataLen);
                             for (let i = 0; i < dataLen; i++) {
-                                nodeData[i] = slMsg.getUint8(idx++);
+                                nodeData[i] = slMsg.getUint8(msgIdx++);
                             }
                             this.events.publish('rdNodeDataRsp', nodeData);
                             break;
                         }
                         case USB_CMD_READ_PART_NUM: {
-                            let partNum = slMsg.getUint32(idx++, this.globals.LE);
+                            let partNum = slMsg.getUint32(msgIdx++, this.globals.LE);
                             let msg = `${this.utils.timeStamp()}: comm ok`;
                             this.events.publish('logMsg', msg);
                             this.events.publish('readPartNumRsp', partNum);
@@ -455,7 +580,9 @@ export class SerialService {
                                 this.validPortTMO = null;
                             }
                             this.validPortTMO = setTimeout(() => {
-                                this.closeComPort();
+                                if (this.portOpenFlag === true) {
+                                    this.closeComPort();
+                                }
                             }, 10000);
                             break;
                         }
@@ -466,10 +593,9 @@ export class SerialService {
                 }
                 break;
             }
-
             case SL_MSG_LOG: {
-                let xMsg = this.rxMsg.slice(0, this.msgIdx);
-                let log_msg = String.fromCharCode.apply(null, xMsg);
+                //let xMsg = this.rxMsg.slice(0, this.msgIdx);
+                let log_msg = String.fromCharCode.apply(null, msgData);
                 this.events.publish('logMsg', log_msg);
 
                 console.log(log_msg);
@@ -485,62 +611,45 @@ export class SerialService {
      *
      */
     private testPortReq() {
-        let len: number;
-        let i: number, j: number, k: number;
-        let crcIdx: number;
-        let lenIdx: number;
+        let pktBuf = new ArrayBuffer(64);
+        let pktData = new Uint8Array(pktBuf);
+        let pktView = new DataView(pktBuf);
+        let slMsgBuf = new Uint8Array(128);
+        let i: number;
+        let msgIdx: number;
 
-        let txArr = new Uint8Array(32);
-        let slMsg = new Uint8Array(64);
-
-        i = 0;
-        txArr[i++] = SL_MSG_TESTPORT;
-        txArr[i++] = SL_MSG_TESTPORT >> 8;
-        lenIdx = i;
-        txArr[i++] = 0;
-        txArr[i++] = 0;
-        crcIdx = i;
-        txArr[i++] = 0; // crc
-        len = i;
-        txArr[i++] = this.seqNum;
-        txArr[i++] = 0x10;
-        txArr[i++] = 0x01;
-        txArr[i++] = 0x19;
-        txArr[i++] = 0x67;
-        len = i - len;
-        txArr[lenIdx++] = len;
-        txArr[lenIdx] = len >> 8;
-
+        this.seqNum = ++this.seqNum % 256;
+        msgIdx = 0;
+        pktView.setUint16(msgIdx, SL_MSG_TESTPORT, LE);
+        msgIdx += 2;
+        msgIdx += 2 + 1; // len + crc
+        // cmd data
+        pktView.setUint8(msgIdx++, this.seqNum);
+        pktView.setUint32(msgIdx, 0x67190110, LE);
+        msgIdx += 4;
+        let msgLen = msgIdx;
+        let dataLen = msgLen - HEAD_LEN;
+        pktView.setUint16(LEN_IDX, dataLen, LE);
         let crc = 0;
-        for (j = 0; j < i; j++) {
-            crc ^= txArr[j];
+        for (i = 0; i < msgLen; i++) {
+            crc ^= pktData[i];
         }
-        txArr[crcIdx] = crc;
+        pktView.setUint8(CRC_IDX, crc);
 
-        let slCmd: any = {};
-        slCmd.seqNum = this.seqNum;
-        slCmd.ttl = 5;
-        slCmd.cmdID = SL_MSG_TESTPORT;
-
-        this.slCmds.push(slCmd);
-
-        this.seqNum++;
-        if (this.seqNum == 256) {
-            this.seqNum = 0;
-        }
-
-        k = 0;
-        slMsg[k++] = SL_START_CHAR;
-        for (j = 0; j < i; j++) {
-            if (txArr[j] < 0x10) {
-                txArr[j] ^= 0x10;
-                slMsg[k++] = SL_ESC_CHAR;
+        msgIdx = 0;
+        slMsgBuf[msgIdx++] = SL_START_CHAR;
+        for (i = 0; i < msgLen; i++) {
+            if (pktData[i] < 0x10) {
+                pktData[i] ^= 0x10;
+                slMsgBuf[msgIdx++] = SL_ESC_CHAR;
             }
-            slMsg[k++] = txArr[j];
+            slMsgBuf[msgIdx++] = pktData[i];
         }
-        slMsg[k++] = SL_END_CHAR;
-        let slWriteMsg = slMsg.slice(0, k);
-        this.slPort.write(slWriteMsg, 'utf8', () => {
+        slMsgBuf[msgIdx++] = SL_END_CHAR;
+
+        let slMsgLen = msgIdx;
+        let slMsg = slMsgBuf.slice(0, slMsgLen);
+        this.slPort.write(slMsg, 'utf8', () => {
             // ---
         });
     }
@@ -552,59 +661,44 @@ export class SerialService {
      *
      */
     private keepAwakeReq() {
-        let len: number;
-        let i: number, j: number, k: number;
-        let crcIdx: number;
-        let lenIdx: number;
+        let pktBuf = new ArrayBuffer(64);
+        let pktData = new Uint8Array(pktBuf);
+        let pktView = new DataView(pktBuf);
+        let slMsgBuf = new Uint8Array(128);
+        let i: number;
+        let msgIdx: number;
 
-        let txArr = new Uint8Array(32);
-        let slMsg = new Uint8Array(64);
-
-        i = 0;
-        txArr[i++] = SL_MSG_USB_CMD;
-        txArr[i++] = SL_MSG_USB_CMD >> 8;
-        lenIdx = i;
-        txArr[i++] = 0;
-        txArr[i++] = 0;
-        crcIdx = i;
-        txArr[i++] = 0; // crc
-        len = i;
-        txArr[i++] = this.seqNum;
-        txArr[i++] = USB_CMD_KEEP_AWAKE;
-        len = i - len;
-        txArr[lenIdx++] = len;
-        txArr[lenIdx] = len >> 8;
-
+        this.seqNum = ++this.seqNum % 256;
+        msgIdx = 0;
+        pktView.setUint16(msgIdx, SL_MSG_USB_CMD, LE);
+        msgIdx += 2;
+        msgIdx += 2 + 1; // len + crc
+        // cmd data
+        pktView.setUint8(msgIdx++, this.seqNum);
+        pktView.setUint8(msgIdx++, USB_CMD_KEEP_AWAKE);
+        let msgLen = msgIdx;
+        let dataLen = msgLen - HEAD_LEN;
+        pktView.setUint16(LEN_IDX, dataLen, LE);
         let crc = 0;
-        for (j = 0; j < i; j++) {
-            crc ^= txArr[j];
+        for (i = 0; i < msgLen; i++) {
+            crc ^= pktData[i];
         }
-        txArr[crcIdx] = crc;
+        pktView.setUint8(CRC_IDX, crc);
 
-        let slCmd: any = {};
-        slCmd.seqNum = this.seqNum;
-        slCmd.ttl = 5;
-        slCmd.cmdID = SL_MSG_USB_CMD;
-
-        this.slCmds.push(slCmd);
-
-        this.seqNum++;
-        if (this.seqNum == 256) {
-            this.seqNum = 0;
-        }
-
-        k = 0;
-        slMsg[k++] = SL_START_CHAR;
-        for (j = 0; j < i; j++) {
-            if (txArr[j] < 0x10) {
-                txArr[j] ^= 0x10;
-                slMsg[k++] = SL_ESC_CHAR;
+        msgIdx = 0;
+        slMsgBuf[msgIdx++] = SL_START_CHAR;
+        for (i = 0; i < msgLen; i++) {
+            if (pktData[i] < 0x10) {
+                pktData[i] ^= 0x10;
+                slMsgBuf[msgIdx++] = SL_ESC_CHAR;
             }
-            slMsg[k++] = txArr[j];
+            slMsgBuf[msgIdx++] = pktData[i];
         }
-        slMsg[k++] = SL_END_CHAR;
-        let slWriteMsg = slMsg.slice(0, k);
-        this.slPort.write(slWriteMsg, 'utf8', () => {
+        slMsgBuf[msgIdx++] = SL_END_CHAR;
+
+        let slMsgLen = msgIdx;
+        let slMsg = slMsgBuf.slice(0, slMsgLen);
+        this.slPort.write(slMsg, 'utf8', () => {
             // ---
         });
     }
@@ -616,59 +710,44 @@ export class SerialService {
      *
      */
     public softwareRstReq() {
-        let len: number;
-        let i: number, j: number, k: number;
-        let crcIdx: number;
-        let lenIdx: number;
+        let pktBuf = new ArrayBuffer(64);
+        let pktData = new Uint8Array(pktBuf);
+        let pktView = new DataView(pktBuf);
+        let slMsgBuf = new Uint8Array(128);
+        let i: number;
+        let msgIdx: number;
 
-        let txArr = new Uint8Array(32);
-        let slMsg = new Uint8Array(64);
-
-        i = 0;
-        txArr[i++] = SL_MSG_USB_CMD;
-        txArr[i++] = SL_MSG_USB_CMD >> 8;
-        lenIdx = i;
-        txArr[i++] = 0;
-        txArr[i++] = 0;
-        crcIdx = i;
-        txArr[i++] = 0; // crc
-        len = i;
-        txArr[i++] = this.seqNum;
-        txArr[i++] = USB_CMD_SOFTWARE_RESET;
-        len = i - len;
-        txArr[lenIdx++] = len;
-        txArr[lenIdx] = len >> 8;
-
+        this.seqNum = ++this.seqNum % 256;
+        msgIdx = 0;
+        pktView.setUint16(msgIdx, SL_MSG_USB_CMD, LE);
+        msgIdx += 2;
+        msgIdx += 2 + 1; // len + crc
+        // cmd data
+        pktView.setUint8(msgIdx++, this.seqNum);
+        pktView.setUint8(msgIdx++, USB_CMD_SOFTWARE_RESET);
+        let msgLen = msgIdx;
+        let dataLen = msgLen - HEAD_LEN;
+        pktView.setUint16(LEN_IDX, dataLen, LE);
         let crc = 0;
-        for (j = 0; j < i; j++) {
-            crc ^= txArr[j];
+        for (i = 0; i < msgLen; i++) {
+            crc ^= pktData[i];
         }
-        txArr[crcIdx] = crc;
+        pktView.setUint8(CRC_IDX, crc);
 
-        let slCmd: any = {};
-        slCmd.seqNum = this.seqNum;
-        slCmd.ttl = 5;
-        slCmd.cmdID = SL_MSG_USB_CMD;
-
-        this.slCmds.push(slCmd);
-
-        this.seqNum++;
-        if (this.seqNum == 256) {
-            this.seqNum = 0;
-        }
-
-        k = 0;
-        slMsg[k++] = SL_START_CHAR;
-        for (j = 0; j < i; j++) {
-            if (txArr[j] < 0x10) {
-                txArr[j] ^= 0x10;
-                slMsg[k++] = SL_ESC_CHAR;
+        msgIdx = 0;
+        slMsgBuf[msgIdx++] = SL_START_CHAR;
+        for (i = 0; i < msgLen; i++) {
+            if (pktData[i] < 0x10) {
+                pktData[i] ^= 0x10;
+                slMsgBuf[msgIdx++] = SL_ESC_CHAR;
             }
-            slMsg[k++] = txArr[j];
+            slMsgBuf[msgIdx++] = pktData[i];
         }
-        slMsg[k++] = SL_END_CHAR;
-        let slWriteMsg = slMsg.slice(0, k);
-        this.slPort.write(slWriteMsg, 'utf8', () => {
+        slMsgBuf[msgIdx++] = SL_END_CHAR;
+
+        let slMsgLen = msgIdx;
+        let slMsg = slMsgBuf.slice(0, slMsgLen);
+        this.slPort.write(slMsg, 'utf8', () => {
             // ---
         });
     }
@@ -680,60 +759,44 @@ export class SerialService {
      *
      */
     public factoryRstReq() {
-        let len: number;
-        let i: number, j: number, k: number;
-        let crcIdx;
-        Number;
-        let lenIdx: number;
+        let pktBuf = new ArrayBuffer(64);
+        let pktData = new Uint8Array(pktBuf);
+        let pktView = new DataView(pktBuf);
+        let slMsgBuf = new Uint8Array(128);
+        let i: number;
+        let msgIdx: number;
 
-        let txArr = new Uint8Array(32);
-        let slMsg = new Uint8Array(64);
-
-        i = 0;
-        txArr[i++] = SL_MSG_USB_CMD;
-        txArr[i++] = SL_MSG_USB_CMD >> 8;
-        lenIdx = i;
-        txArr[i++] = 0;
-        txArr[i++] = 0;
-        crcIdx = i;
-        txArr[i++] = 0; // crc
-        len = i;
-        txArr[i++] = this.seqNum;
-        txArr[i++] = USB_CMD_FACTORY_RESET;
-        len = i - len;
-        txArr[lenIdx++] = len;
-        txArr[lenIdx] = len >> 8;
-
+        this.seqNum = ++this.seqNum % 256;
+        msgIdx = 0;
+        pktView.setUint16(msgIdx, SL_MSG_USB_CMD, LE);
+        msgIdx += 2;
+        msgIdx += 2 + 1; // len + crc
+        // cmd data
+        pktView.setUint8(msgIdx++, this.seqNum);
+        pktView.setUint8(msgIdx++, USB_CMD_FACTORY_RESET);
+        let msgLen = msgIdx;
+        let dataLen = msgLen - HEAD_LEN;
+        pktView.setUint16(LEN_IDX, dataLen, LE);
         let crc = 0;
-        for (j = 0; j < i; j++) {
-            crc ^= txArr[j];
+        for (i = 0; i < msgLen; i++) {
+            crc ^= pktData[i];
         }
-        txArr[crcIdx] = crc;
+        pktView.setUint8(CRC_IDX, crc);
 
-        let slCmd: any = {};
-        slCmd.seqNum = this.seqNum;
-        slCmd.ttl = 5;
-        slCmd.cmdID = SL_MSG_USB_CMD;
-
-        this.slCmds.push(slCmd);
-
-        this.seqNum++;
-        if (this.seqNum == 256) {
-            this.seqNum = 0;
-        }
-
-        k = 0;
-        slMsg[k++] = SL_START_CHAR;
-        for (j = 0; j < i; j++) {
-            if (txArr[j] < 0x10) {
-                txArr[j] ^= 0x10;
-                slMsg[k++] = SL_ESC_CHAR;
+        msgIdx = 0;
+        slMsgBuf[msgIdx++] = SL_START_CHAR;
+        for (i = 0; i < msgLen; i++) {
+            if (pktData[i] < 0x10) {
+                pktData[i] ^= 0x10;
+                slMsgBuf[msgIdx++] = SL_ESC_CHAR;
             }
-            slMsg[k++] = txArr[j];
+            slMsgBuf[msgIdx++] = pktData[i];
         }
-        slMsg[k++] = SL_END_CHAR;
-        let slWriteMsg = slMsg.slice(0, k);
-        this.slPort.write(slWriteMsg, 'utf8', () => {
+        slMsgBuf[msgIdx++] = SL_END_CHAR;
+
+        let slMsgLen = msgIdx;
+        let slMsg = slMsgBuf.slice(0, slMsgLen);
+        this.slPort.write(slMsg, 'utf8', () => {
             // ---
         });
     }
@@ -745,59 +808,44 @@ export class SerialService {
      *
      */
     public rdKeys() {
-        let len: number;
-        let i: number, j: number, k: number;
-        let crcIdx: number;
-        let lenIdx: number;
+        let pktBuf = new ArrayBuffer(64);
+        let pktData = new Uint8Array(pktBuf);
+        let pktView = new DataView(pktBuf);
+        let slMsgBuf = new Uint8Array(128);
+        let i: number;
+        let msgIdx: number;
 
-        let txArr = new Uint8Array(32);
-        let slMsg = new Uint8Array(64);
-
-        i = 0;
-        txArr[i++] = SL_MSG_USB_CMD;
-        txArr[i++] = SL_MSG_USB_CMD >> 8;
-        lenIdx = i;
-        txArr[i++] = 0;
-        txArr[i++] = 0;
-        crcIdx = i;
-        txArr[i++] = 0; // crc
-        len = i;
-        txArr[i++] = this.seqNum;
-        txArr[i++] = USB_CMD_RD_KEYS;
-        len = i - len;
-        txArr[lenIdx++] = len;
-        txArr[lenIdx] = len >> 8;
-
+        this.seqNum = ++this.seqNum % 256;
+        msgIdx = 0;
+        pktView.setUint16(msgIdx, SL_MSG_USB_CMD, LE);
+        msgIdx += 2;
+        msgIdx += 2 + 1; // len + crc
+        // cmd data
+        pktView.setUint8(msgIdx++, this.seqNum);
+        pktView.setUint8(msgIdx++, USB_CMD_RD_KEYS);
+        let msgLen = msgIdx;
+        let dataLen = msgLen - HEAD_LEN;
+        pktView.setUint16(LEN_IDX, dataLen, LE);
         let crc = 0;
-        for (j = 0; j < i; j++) {
-            crc ^= txArr[j];
+        for (i = 0; i < msgLen; i++) {
+            crc ^= pktData[i];
         }
-        txArr[crcIdx] = crc;
+        pktView.setUint8(CRC_IDX, crc);
 
-        let slCmd: any = {};
-        slCmd.seqNum = this.seqNum;
-        slCmd.ttl = 5;
-        slCmd.cmdID = SL_MSG_USB_CMD;
-
-        this.slCmds.push(slCmd);
-
-        this.seqNum++;
-        if (this.seqNum == 256) {
-            this.seqNum = 0;
-        }
-
-        k = 0;
-        slMsg[k++] = SL_START_CHAR;
-        for (j = 0; j < i; j++) {
-            if (txArr[j] < 0x10) {
-                txArr[j] ^= 0x10;
-                slMsg[k++] = SL_ESC_CHAR;
+        msgIdx = 0;
+        slMsgBuf[msgIdx++] = SL_START_CHAR;
+        for (i = 0; i < msgLen; i++) {
+            if (pktData[i] < 0x10) {
+                pktData[i] ^= 0x10;
+                slMsgBuf[msgIdx++] = SL_ESC_CHAR;
             }
-            slMsg[k++] = txArr[j];
+            slMsgBuf[msgIdx++] = pktData[i];
         }
-        slMsg[k++] = SL_END_CHAR;
-        let slWriteMsg = slMsg.slice(0, k);
-        this.slPort.write(slWriteMsg, 'utf8', () => {
+        slMsgBuf[msgIdx++] = SL_END_CHAR;
+
+        let slMsgLen = msgIdx;
+        let slMsg = slMsgBuf.slice(0, slMsgLen);
+        this.slPort.write(slMsg, 'utf8', () => {
             // ---
         });
     }
@@ -809,76 +857,61 @@ export class SerialService {
      *
      */
     public wrKeys(linkKey: string, epid: string) {
-        let len: number;
-        let i: number, j: number, k: number;
-        let crcIdx: number;
-        let lenIdx: number;
+        let pktBuf = new ArrayBuffer(64);
+        let pktData = new Uint8Array(pktBuf);
+        let pktView = new DataView(pktBuf);
+        let slMsgBuf = new Uint8Array(128);
+        let i: number, j: number;
         let chrCode = 0;
+        let msgIdx: number;
 
-        let txArr = new Uint8Array(32);
-        let slMsg = new Uint8Array(64);
-
-        i = 0;
-        txArr[i++] = SL_MSG_USB_CMD;
-        txArr[i++] = SL_MSG_USB_CMD >> 8;
-        lenIdx = i;
-        txArr[i++] = 0;
-        txArr[i++] = 0;
-        crcIdx = i;
-        txArr[i++] = 0; // crc
-        len = i;
-        txArr[i++] = this.seqNum;
-        txArr[i++] = USB_CMD_WR_KEYS;
+        this.seqNum = ++this.seqNum % 256;
+        msgIdx = 0;
+        pktView.setUint16(msgIdx, SL_MSG_USB_CMD, LE);
+        msgIdx += 2;
+        msgIdx += 2 + 1; // len + crc
+        // cmd data
+        pktView.setUint8(msgIdx++, this.seqNum);
+        pktView.setUint8(msgIdx++, USB_CMD_WR_KEYS);
         for (j = 0; j < 16; j++) {
             chrCode = linkKey.charCodeAt(j);
             if (chrCode) {
-                txArr[i++] = chrCode;
+                pktView.setUint8(msgIdx++, chrCode);
             } else {
-                txArr[i++] = 0;
+                pktView.setUint8(msgIdx++, 0);
             }
         }
         for (j = 0; j < 8; j++) {
             chrCode = epid.charCodeAt(j);
             if (chrCode) {
-                txArr[i++] = chrCode;
+                pktView.setUint8(msgIdx++, chrCode);
             } else {
-                txArr[i++] = 0;
+                pktView.setUint8(msgIdx++, 0);
             }
         }
-        len = i - len;
-        txArr[lenIdx++] = len;
-        txArr[lenIdx] = len >> 8;
-
+        let msgLen = msgIdx;
+        let dataLen = msgLen - HEAD_LEN;
+        pktView.setUint16(LEN_IDX, dataLen, LE);
         let crc = 0;
-        for (j = 0; j < i; j++) {
-            crc ^= txArr[j];
+        for (i = 0; i < msgLen; i++) {
+            crc ^= pktData[i];
         }
-        txArr[crcIdx] = crc;
+        pktView.setUint8(CRC_IDX, crc);
 
-        let slCmd: any = {};
-        slCmd.seqNum = this.seqNum;
-        slCmd.ttl = 5;
-        slCmd.cmdID = SL_MSG_USB_CMD;
-
-        this.slCmds.push(slCmd);
-
-        this.seqNum++;
-        if (this.seqNum == 256) {
-            this.seqNum = 0;
-        }
-
-        k = 0;
-        slMsg[k++] = SL_START_CHAR;
-        for (j = 0; j < i; j++) {
-            if (txArr[j] < 0x10) {
-                txArr[j] ^= 0x10;
-                slMsg[k++] = SL_ESC_CHAR;
+        msgIdx = 0;
+        slMsgBuf[msgIdx++] = SL_START_CHAR;
+        for (i = 0; i < msgLen; i++) {
+            if (pktData[i] < 0x10) {
+                pktData[i] ^= 0x10;
+                slMsgBuf[msgIdx++] = SL_ESC_CHAR;
             }
-            slMsg[k++] = txArr[j];
+            slMsgBuf[msgIdx++] = pktData[i];
         }
-        slMsg[k++] = SL_END_CHAR;
-        let slWriteMsg = slMsg.slice(0, k);
-        this.slPort.write(slWriteMsg, 'utf8', () => {
+        slMsgBuf[msgIdx++] = SL_END_CHAR;
+
+        let slMsgLen = msgIdx;
+        let slMsg = slMsgBuf.slice(0, slMsgLen);
+        this.slPort.write(slMsg, 'utf8', () => {
             // ---
         });
     }
@@ -890,127 +923,97 @@ export class SerialService {
      *
      */
     public rdNodeData_0() {
-        let len: number;
-        let i: number, j: number, k: number;
-        let crcIdx: number;
-        let lenIdx: number;
+        let pktBuf = new ArrayBuffer(64);
+        let pktData = new Uint8Array(pktBuf);
+        let pktView = new DataView(pktBuf);
+        let slMsgBuf = new Uint8Array(128);
+        let i: number;
+        let msgIdx: number;
 
-        let txArr = new Uint8Array(32);
-        let slMsg = new Uint8Array(64);
-
-        i = 0;
-        txArr[i++] = SL_MSG_USB_CMD;
-        txArr[i++] = SL_MSG_USB_CMD >> 8;
-        lenIdx = i;
-        txArr[i++] = 0;
-        txArr[i++] = 0;
-        crcIdx = i;
-        txArr[i++] = 0; // crc
-        len = i;
-        txArr[i++] = this.seqNum;
-        txArr[i++] = USB_CMD_RD_NODE_DATA_0;
-        len = i - len;
-        txArr[lenIdx++] = len;
-        txArr[lenIdx] = len >> 8;
-
+        this.seqNum = ++this.seqNum % 256;
+        msgIdx = 0;
+        pktView.setUint16(msgIdx, SL_MSG_USB_CMD, LE);
+        msgIdx += 2;
+        msgIdx += 2 + 1; // len + crc
+        // cmd data
+        pktView.setUint8(msgIdx++, this.seqNum);
+        pktView.setUint8(msgIdx++, USB_CMD_RD_NODE_DATA_0);
+        let msgLen = msgIdx;
+        let dataLen = msgLen - HEAD_LEN;
+        pktView.setUint16(LEN_IDX, dataLen, LE);
         let crc = 0;
-        for (j = 0; j < i; j++) {
-            crc ^= txArr[j];
+        for (i = 0; i < msgLen; i++) {
+            crc ^= pktData[i];
         }
-        txArr[crcIdx] = crc;
+        pktView.setUint8(CRC_IDX, crc);
 
-        let slCmd: any = {};
-        slCmd.seqNum = this.seqNum;
-        slCmd.ttl = 5;
-        slCmd.cmdID = SL_MSG_USB_CMD;
-
-        this.slCmds.push(slCmd);
-
-        this.seqNum++;
-        if (this.seqNum == 256) {
-            this.seqNum = 0;
-        }
-
-        k = 0;
-        slMsg[k++] = SL_START_CHAR;
-        for (j = 0; j < i; j++) {
-            if (txArr[j] < 0x10) {
-                txArr[j] ^= 0x10;
-                slMsg[k++] = SL_ESC_CHAR;
+        msgIdx = 0;
+        slMsgBuf[msgIdx++] = SL_START_CHAR;
+        for (i = 0; i < msgLen; i++) {
+            if (pktData[i] < 0x10) {
+                pktData[i] ^= 0x10;
+                slMsgBuf[msgIdx++] = SL_ESC_CHAR;
             }
-            slMsg[k++] = txArr[j];
+            slMsgBuf[msgIdx++] = pktData[i];
         }
-        slMsg[k++] = SL_END_CHAR;
-        let slWriteMsg = slMsg.slice(0, k);
-        this.slPort.write(slWriteMsg, 'utf8', () => {
+        slMsgBuf[msgIdx++] = SL_END_CHAR;
+
+        let slMsgLen = msgIdx;
+        let slMsg = slMsgBuf.slice(0, slMsgLen);
+        this.slPort.write(slMsg, 'utf8', () => {
             // ---
         });
     }
 
     /***********************************************************************************************
-     * fn          wrKeys
+     * fn          wrNodeData_0
      *
      * brief
      *
      */
     public wrNodeData_0(buf: ArrayBuffer) {
-        let len: number;
-        let i: number, j: number, k: number;
-        let crcIdx: number;
-        let lenIdx: number;
+        let pktBuf = new ArrayBuffer(64);
+        let pktData = new Uint8Array(pktBuf);
+        let pktView = new DataView(pktBuf);
+        let slMsgBuf = new Uint8Array(128);
+        let i: number, j: number;
+        let msgIdx: number;
 
-        let txArr = new Uint8Array(32);
-        let slMsg = new Uint8Array(64);
+        this.seqNum = ++this.seqNum % 256;
+        msgIdx = 0;
+        pktView.setUint16(msgIdx, SL_MSG_USB_CMD, LE);
+        msgIdx += 2;
+        msgIdx += 2 + 1; // len + crc
+        // cmd data
+        pktView.setUint8(msgIdx++, this.seqNum);
+        pktView.setUint8(msgIdx++, USB_CMD_WR_NODE_DATA_0);
         let data = new Uint8Array(buf);
-
-        i = 0;
-        txArr[i++] = SL_MSG_USB_CMD;
-        txArr[i++] = SL_MSG_USB_CMD >> 8;
-        lenIdx = i;
-        txArr[i++] = 0;
-        txArr[i++] = 0;
-        crcIdx = i;
-        txArr[i++] = 0; // crc
-        len = i;
-        txArr[i++] = this.seqNum;
-        txArr[i++] = USB_CMD_WR_NODE_DATA_0;
         for (j = 0; j < buf.byteLength; j++) {
-            txArr[i++] = data[j];
+            pktView.setUint8(msgIdx++, data[j]);
         }
-        len = i - len;
-        txArr[lenIdx++] = len;
-        txArr[lenIdx] = len >> 8;
-
+        let msgLen = msgIdx;
+        let dataLen = msgLen - HEAD_LEN;
+        pktView.setUint16(LEN_IDX, dataLen, LE);
         let crc = 0;
-        for (j = 0; j < i; j++) {
-            crc ^= txArr[j];
+        for (i = 0; i < msgLen; i++) {
+            crc ^= pktData[i];
         }
-        txArr[crcIdx] = crc;
+        pktView.setUint8(CRC_IDX, crc);
 
-        let slCmd: any = {};
-        slCmd.seqNum = this.seqNum;
-        slCmd.ttl = 5;
-        slCmd.cmdID = SL_MSG_USB_CMD;
-
-        this.slCmds.push(slCmd);
-
-        this.seqNum++;
-        if (this.seqNum == 256) {
-            this.seqNum = 0;
-        }
-
-        k = 0;
-        slMsg[k++] = SL_START_CHAR;
-        for (j = 0; j < i; j++) {
-            if (txArr[j] < 0x10) {
-                txArr[j] ^= 0x10;
-                slMsg[k++] = SL_ESC_CHAR;
+        msgIdx = 0;
+        slMsgBuf[msgIdx++] = SL_START_CHAR;
+        for (i = 0; i < msgLen; i++) {
+            if (pktData[i] < 0x10) {
+                pktData[i] ^= 0x10;
+                slMsgBuf[msgIdx++] = SL_ESC_CHAR;
             }
-            slMsg[k++] = txArr[j];
+            slMsgBuf[msgIdx++] = pktData[i];
         }
-        slMsg[k++] = SL_END_CHAR;
-        let slWriteMsg = slMsg.slice(0, k);
-        this.slPort.write(slWriteMsg, 'utf8', () => {
+        slMsgBuf[msgIdx++] = SL_END_CHAR;
+
+        let slMsgLen = msgIdx;
+        let slMsg = slMsgBuf.slice(0, slMsgLen);
+        this.slPort.write(slMsg, 'utf8', () => {
             // ---
         });
     }
@@ -1022,99 +1025,48 @@ export class SerialService {
      *
      */
     public readPartNum() {
-        let len: number;
-        let i: number, j: number, k: number;
-        let crcIdx: number;
-        let lenIdx: number;
+        if (this.validPortFlag === false) {
+            return;
+        }
+        let pktBuf = new ArrayBuffer(64);
+        let pktData = new Uint8Array(pktBuf);
+        let pktView = new DataView(pktBuf);
+        let slMsgBuf = new Uint8Array(128);
+        let i: number;
+        let msgIdx: number;
 
-        let txArr = new Uint8Array(32);
-        let slMsg = new Uint8Array(64);
-
-        i = 0;
-        txArr[i++] = SL_MSG_USB_CMD;
-        txArr[i++] = SL_MSG_USB_CMD >> 8;
-        lenIdx = i;
-        txArr[i++] = 0;
-        txArr[i++] = 0;
-        crcIdx = i;
-        txArr[i++] = 0; // crc
-        len = i;
-        txArr[i++] = this.seqNum;
-        txArr[i++] = USB_CMD_READ_PART_NUM;
-        len = i - len;
-        txArr[lenIdx++] = len;
-        txArr[lenIdx] = len >> 8;
-
+        this.seqNum = ++this.seqNum % 256;
+        msgIdx = 0;
+        pktView.setUint16(msgIdx, SL_MSG_USB_CMD, LE);
+        msgIdx += 2;
+        msgIdx += 2 + 1; // len + crc
+        // cmd data
+        pktView.setUint8(msgIdx++, this.seqNum);
+        pktView.setUint8(msgIdx++, USB_CMD_READ_PART_NUM);
+        let msgLen = msgIdx;
+        let dataLen = msgLen - HEAD_LEN;
+        pktView.setUint16(LEN_IDX, dataLen, LE);
         let crc = 0;
-        for (j = 0; j < i; j++) {
-            crc ^= txArr[j];
+        for (i = 0; i < msgLen; i++) {
+            crc ^= pktData[i];
         }
-        txArr[crcIdx] = crc;
+        pktView.setUint8(CRC_IDX, crc);
 
-        let slCmd: any = {};
-        slCmd.seqNum = this.seqNum;
-        slCmd.ttl = 5;
-        slCmd.cmdID = SL_MSG_USB_CMD;
-
-        this.slCmds.push(slCmd);
-
-        this.seqNum++;
-        if (this.seqNum == 256) {
-            this.seqNum = 0;
-        }
-
-        k = 0;
-        slMsg[k++] = SL_START_CHAR;
-        for (j = 0; j < i; j++) {
-            if (txArr[j] < 0x10) {
-                txArr[j] ^= 0x10;
-                slMsg[k++] = SL_ESC_CHAR;
+        msgIdx = 0;
+        slMsgBuf[msgIdx++] = SL_START_CHAR;
+        for (i = 0; i < msgLen; i++) {
+            if (pktData[i] < 0x10) {
+                pktData[i] ^= 0x10;
+                slMsgBuf[msgIdx++] = SL_ESC_CHAR;
             }
-            slMsg[k++] = txArr[j];
+            slMsgBuf[msgIdx++] = pktData[i];
         }
-        slMsg[k++] = SL_END_CHAR;
-        let slWriteMsg = slMsg.slice(0, k);
-        this.slPort.write(slWriteMsg, 'utf8', () => {
+        slMsgBuf[msgIdx++] = SL_END_CHAR;
+
+        let slMsgLen = msgIdx;
+        let slMsg = slMsgBuf.slice(0, slMsgLen);
+        this.slPort.write(slMsg, 'utf8', () => {
             // ---
         });
     }
-
-    /***********************************************************************************************
-     * fn          slCmdsClean
-     *
-     * brief
-     *
-     */
-    private slCmdsClean() {
-        let i = 0;
-        while (this.slCmds[i]) {
-            if (this.slCmds[i].ttl) {
-                this.slCmds[i].ttl--;
-                i++;
-            } else {
-                let cmd = this.slCmds.splice(i, 1)[0];
-            }
-        }
-        setTimeout(() => {
-            this.slCmdsClean();
-        }, 300);
-    }
-
-    /***********************************************************************************************
-     * fn          extToHex
-     *
-     * brief
-     *
-     *
-    private extToHex(extAddr: number) {
-        let ab = new ArrayBuffer(8);
-        let dv = new DataView(ab);
-        dv.setFloat64(0, extAddr);
-        let extHex = [];
-        for (let i = 0; i < 8; i++) {
-            extHex[i] = ('0' + dv.getUint8(i).toString(16)).slice(-2);
-        }
-        return extHex.join(':');
-    }
-    */
 }

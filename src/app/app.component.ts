@@ -88,7 +88,7 @@ export class AppComponent implements OnInit, OnDestroy {
         });
         setTimeout(() => {
             this.serial.rdKeys();
-        }, 200);
+        }, 500);
     }
     /***********************************************************************************************
      * fn          rdKeysMsg

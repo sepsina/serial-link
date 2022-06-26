@@ -1,11 +1,7 @@
 <div class="main-container" id="container">
     <div id="serialPort" class="right-center">
         <div class="left-center app-card-title">serial port</div>
-        <button
-            mat-button
-            (click)="this.serial.listComPorts()"
-            [disabled]="this.serial.searchPortFlag"
-        >
+        <button mat-button (click)="this.serial.listComPorts()">
             <mat-icon>login</mat-icon>
             Open
         </button>

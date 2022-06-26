@@ -61,10 +61,10 @@ export class UtilsService {
 
     public timeStamp() {
         const now = new Date();
-        return `<${now.getHours().toString(10).padStart(2, '0')}:${now.getMinutes().toString(10).padStart(2, '0')}:${now
-            .getSeconds()
+        return `<${now.getHours().toString(10).padStart(2, '0')}:${now
+            .getMinutes()
             .toString(10)
-            .padStart(2, '0')}>`;
+            .padStart(2, '0')}:${now.getSeconds().toString(10).padStart(2, '0')}>`;
     }
 
     public strToByteArr(str: string): number[] {
@@ -85,7 +85,15 @@ export class UtilsService {
     }
 
     public ipFromLong(ipLong: number): string {
-        return (ipLong >>> 24) + '.' + ((ipLong >> 16) & 0xff) + '.' + ((ipLong >> 8) & 0xff) + '.' + (ipLong & 0xff);
+        return (
+            (ipLong >>> 24) +
+            '.' +
+            ((ipLong >> 16) & 0xff) +
+            '.' +
+            ((ipLong >> 8) & 0xff) +
+            '.' +
+            (ipLong & 0xff)
+        );
     }
 
     public ipToLong(ip: string): number {
@@ -122,5 +130,16 @@ export class UtilsService {
             view[i] = arr[i];
         }
         return arrayBuf;
+    }
+
+    public extToHex(extAddr: number) {
+        let ab = new ArrayBuffer(8);
+        let dv = new DataView(ab);
+        dv.setFloat64(0, extAddr);
+        let extHex = [];
+        for (let i = 0; i < 8; i++) {
+            extHex[i] = ('0' + dv.getUint8(i).toString(16)).slice(-2);
+        }
+        return extHex.join(':');
     }
 }
