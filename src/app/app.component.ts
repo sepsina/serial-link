@@ -1,19 +1,11 @@
-import {Component, NgZone, OnDestroy, ViewChild, OnInit} from '@angular/core';
+import {Component, NgZone, OnDestroy, OnInit} from '@angular/core';
 import {GlobalsService} from './globals.service';
 import {EventsService} from './events.service';
 import {SerialService, rdKeys_t} from './serial.service';
-import {CdkDrag, CdkDragEnd} from '@angular/cdk/drag-drop';
-import {MatDialog, MatDialogConfig} from '@angular/material/dialog';
-import {MatMenuTrigger} from '@angular/material/menu';
-import {sprintf} from 'sprintf-js';
-import {MatSelectChange} from '@angular/material/select';
-import {MatSelectionListChange} from '@angular/material/list';
 import {Validators, FormGroup, FormControl} from '@angular/forms';
 
 const USB_CMD_STATUS_OK = 0x00;
-const USB_CMD_STATUS_FAIL = 0x01;
-
-const HTU21D_005 = 500;
+//const USB_CMD_STATUS_FAIL = 0x01;
 
 @Component({
     selector: 'app-root',
@@ -21,8 +13,6 @@ const HTU21D_005 = 500;
     styleUrls: ['./app.component.scss'],
 })
 export class AppComponent implements OnInit, OnDestroy {
-    statusMsg: string = '. . . . .';
-    private msgTmo: any = null;
     formGroup: FormGroup;
     linkKey: string = 'link-key-1234567';
     epid: string = 'epid-123';
@@ -32,18 +22,13 @@ export class AppComponent implements OnInit, OnDestroy {
 
     partNum = 0;
     validNode = true;
-
     startFlag = true;
-
-    @ViewChild(MatMenuTrigger) contextMenu: MatMenuTrigger;
-    contextMenuPosition = {x: '0px', y: '0px'};
 
     constructor(
         public serial: SerialService,
         public globals: GlobalsService,
         private events: EventsService,
-        private ngZone: NgZone,
-        private dialog: MatDialog
+        private ngZone: NgZone
     ) {}
 
     ngOnInit() {
@@ -130,10 +115,10 @@ export class AppComponent implements OnInit, OnDestroy {
             return 'You must enter a value';
         }
         if (this.formGroup.get('linkKey').hasError('maxlength')) {
-            return sprintf('link key must have %d chars', 16);
+            return 'link key must have 16 chars';
         }
         if (this.formGroup.get('linkKey').hasError('minlength')) {
-            return sprintf('link key must have %d chars', 16);
+            return 'link key must have 16 chars';
         }
     }
 
@@ -145,7 +130,7 @@ export class AppComponent implements OnInit, OnDestroy {
      */
     epidErr() {
         if (this.formGroup.get('epid').hasError('maxlength')) {
-            return sprintf('epid must have less than %d chars', 8);
+            return 'epid must have less than 8 chars';
         }
     }
 
@@ -175,7 +160,7 @@ export class AppComponent implements OnInit, OnDestroy {
      *
      * brief
      *
-     */
+     *
     onContextMenu(event, idx: number) {
         event.preventDefault();
         this.contextMenuPosition.x = event.clientX + 'px';
@@ -184,7 +169,7 @@ export class AppComponent implements OnInit, OnDestroy {
         this.contextMenu.menu.focusFirstItem('mouse');
         this.contextMenu.openMenu();
     }
-
+    */
     /***********************************************************************************************
      * fn          ngOnDestroy
      *
@@ -194,8 +179,7 @@ export class AppComponent implements OnInit, OnDestroy {
     ngOnDestroy() {
         this.serial.slPort.close((err) => {
             if (err) {
-                let msg = sprintf('close err: %s', err.message);
-                console.log(msg);
+                console.log(`close err: ${err.message}`);
             }
         });
         this.validNode = false;
@@ -208,7 +192,7 @@ export class AppComponent implements OnInit, OnDestroy {
      *
      * brief
      *
-     */
+     *
     private setStatusMsg(msg: string) {
         this.ngZone.run(() => {
             this.statusMsg = msg;
@@ -220,7 +204,7 @@ export class AppComponent implements OnInit, OnDestroy {
             });
         }, 2000);
     }
-
+    */
     /***********************************************************************************************
      * fn          wrKeys
      *

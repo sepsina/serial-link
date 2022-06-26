@@ -1,10 +1,9 @@
-﻿import { Injectable } from '@angular/core';
+﻿import {Injectable} from '@angular/core';
 
 @Injectable({
-    providedIn: 'root'
+    providedIn: 'root',
 })
 export class UtilsService {
-
     constructor() {
         // ---
     }
@@ -31,17 +30,17 @@ export class UtilsService {
 
     public int32ToByteArr(int32: number): number[] {
         let arr = [];
-        arr[0] = (int32 & 0x000000FF) >> 0;
-        arr[1] = (int32 & 0x0000FF00) >> 8;
-        arr[2] = (int32 & 0x00FF0000) >> 16;
-        arr[3] = (int32 & 0xFF000000) >>> 24;
+        arr[0] = (int32 & 0x000000ff) >> 0;
+        arr[1] = (int32 & 0x0000ff00) >> 8;
+        arr[2] = (int32 & 0x00ff0000) >> 16;
+        arr[3] = (int32 & 0xff000000) >>> 24;
         return arr;
     }
 
     public int16ToByteArr(int16: number): number[] {
         let arr = [];
-        arr[0] = (int16 & 0x00FF) >> 0;
-        arr[1] = (int16 & 0xFF00) >>> 8;
+        arr[0] = (int16 & 0x00ff) >> 0;
+        arr[1] = (int16 & 0xff00) >>> 8;
         return arr;
     }
 
@@ -60,6 +59,14 @@ export class UtilsService {
         return this.int32ToByteArr(zbTime);
     }
 
+    public timeStamp() {
+        const now = new Date();
+        return `<${now.getHours().toString(10).padStart(2, '0')}:${now.getMinutes().toString(10).padStart(2, '0')}:${now
+            .getSeconds()
+            .toString(10)
+            .padStart(2, '0')}>`;
+    }
+
     public strToByteArr(str: string): number[] {
         let len = str.length;
         let strVal = str;
@@ -73,30 +80,27 @@ export class UtilsService {
 
     public byteArrToStr(arr: number[]): string {
         let len = arr[0];
-        let charArr = arr.slice(1, (len + 1));
+        let charArr = arr.slice(1, len + 1);
         return String.fromCharCode.apply(String, charArr);
     }
 
     public ipFromLong(ipLong: number): string {
-        return ((ipLong >>> 24) + '.' +
-                (ipLong >> 16 & 0xFF) + '.' +
-                (ipLong >> 8 & 0xFF) + '.' +
-                (ipLong & 0xFF));
+        return (ipLong >>> 24) + '.' + ((ipLong >> 16) & 0xff) + '.' + ((ipLong >> 8) & 0xff) + '.' + (ipLong & 0xff);
     }
 
     public ipToLong(ip: string): number {
         let ipl = 0;
-        ip.split('.').forEach(function(octet) {
+        ip.split('.').forEach(function (octet) {
             ipl <<= 8;
             ipl += parseInt(octet);
         });
-        return(ipl >>> 0);
+        return ipl >>> 0;
     }
 
-    public arrayBufToBuf(arrayBuf: ArrayBuffer){
+    public arrayBufToBuf(arrayBuf: ArrayBuffer) {
         let buf = window.nw.Buffer.alloc(arrayBuf.byteLength);
         let view = new Uint8Array(arrayBuf);
-        for(let i = 0; i < buf.length; i++) {
+        for (let i = 0; i < buf.length; i++) {
             buf[i] = view[i];
         }
         return buf;
@@ -120,4 +124,3 @@ export class UtilsService {
         return arrayBuf;
     }
 }
-

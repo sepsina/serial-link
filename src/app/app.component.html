@@ -1,7 +1,11 @@
 <div class="main-container" id="container">
     <div id="serialPort" class="right-center">
         <div class="left-center app-card-title">serial port</div>
-        <button mat-button (click)="this.serial.listComPorts()" [disabled]="this.serial.searchPortFlag">
+        <button
+            mat-button
+            (click)="this.serial.listComPorts()"
+            [disabled]="this.serial.searchPortFlag"
+        >
             <mat-icon>login</mat-icon>
             Open
         </button>
@@ -23,10 +27,6 @@
                 Save
             </button>
         </div>
-        <!--<div class="left-center" id="linkKey">
-            <label for="linkKey" style="padding-right: 5px">Link Key:</label>
-            <input type="text" style="flex: 1 1 auto; padding: 5px">
-        </div>-->
         <mat-form-field id="linkKey">
             <input
                 matInput
@@ -59,7 +59,9 @@
             <app-ssr-009 *ngSwitchCase="this.globals.SSR_009"></app-ssr-009>
             <app-actuator-010 *ngSwitchCase="this.globals.ACTUATOR_010"></app-actuator-010>
             <app-dbl-sw-008 *ngSwitchCase="this.globals.DBL_SW_008"></app-dbl-sw-008>
-            <div *ngSwitchDefault class="center-center" style="height: 50px">--- no node data ---</div>
+            <div *ngSwitchDefault class="center-center" style="height: 50px">
+                --- no node data ---
+            </div>
         </div>
     </div>
     <div id="devReset" class="right-center" *ngIf="this.serial.validPortFlag">
@@ -80,7 +82,9 @@
                 <mat-icon>delete_forever</mat-icon>
                 Clear
             </button>
-            <mat-checkbox id="cbScroll" [(ngModel)]="scrollFlag" color="primary"> autoscroll </mat-checkbox>
+            <mat-checkbox id="cbScroll" [(ngModel)]="scrollFlag" color="primary">
+                autoscroll
+            </mat-checkbox>
         </div>
         <div id="logList">
             <div class="log-msg left-center" *ngFor="let msg of logs">

@@ -1,28 +1,23 @@
-.chk-box-label{
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
-  align-self: flex-start;
-  padding: 8px 5px;
+.chk-box-label {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-self: flex-start;
+    padding: 8px 5px;
 }
-.check-box-conteiner{
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
-  align-items: flex-start;
-  flex: 1 1 auto;
-  padding: 5px 0px;
-  font-size: 0.8em;
-  //border-left: solid 1px green;
+.check-box-conteiner {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    align-items: flex-start;
+    flex: 1 1 auto;
+    padding: 5px 0px;
+    font-size: 0.8em;
 }
-#reportInterval{
-  //display: flex;
-  //flex-direction: column;
-  flex: 1 1 auto;
-  //border-top: solid 1px #ededed;
-  padding: 5px;
+#reportInterval {
+    flex: 1 1 auto;
+    padding: 5px;
 }
-#repIntInput{
-  padding-left: 5px;
+#repIntInput {
+    padding-left: 5px;
 }
-

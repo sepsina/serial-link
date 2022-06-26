@@ -1,9 +1,9 @@
 // https://github.com/qligier/angular4-events
-import { Injectable } from '@angular/core';
-import { Subject, Subscription } from 'rxjs';
+import {Injectable} from '@angular/core';
+import {Subject, Subscription} from 'rxjs';
 
 @Injectable({
-    providedIn: 'root'
+    providedIn: 'root',
 })
 export class EventsService {
     private events = [];
@@ -12,13 +12,13 @@ export class EventsService {
         // ---
     }
     public subscribe(event: string, callback: (value: any) => void): Subscription {
-        if(this.events[event] === undefined) {
+        if (this.events[event] === undefined) {
             this.events[event] = new Subject<any>();
         }
         return this.events[event].asObservable().subscribe(callback);
     }
     public publish(event: string, eventObject?: any): void {
-        if(!this.events[event]) {
+        if (!this.events[event]) {
             return;
         }
         this.events[event].next(eventObject);
