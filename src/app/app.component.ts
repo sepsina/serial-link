@@ -21,7 +21,7 @@ export class AppComponent implements OnInit, OnDestroy {
     scrollFlag = true;
 
     partNum = 0;
-    validNode = true;
+    //validNode = true;
     startFlag = true;
 
     constructor(
@@ -31,6 +31,22 @@ export class AppComponent implements OnInit, OnDestroy {
         private ngZone: NgZone
     ) {}
 
+    /***********************************************************************************************
+     * fn          ngOnDestroy
+     *
+     * brief
+     *
+     */
+    ngOnDestroy() {
+        this.serial.closeComPort();
+    }
+
+    /***********************************************************************************************
+     * fn          ngOnInit
+     *
+     * brief
+     *
+     */
     ngOnInit() {
         this.formGroup = new FormGroup({
             linkKey: new FormControl(this.linkKey, [
@@ -62,7 +78,7 @@ export class AppComponent implements OnInit, OnDestroy {
         });
         this.events.subscribe('readPartNumRsp', (msg: number) => {
             this.partNum = msg;
-            console.log('part number: ' + this.partNum);
+            console.log(`part number: ${this.partNum}`);
             if (this.startFlag == true) {
                 this.startFlag = false;
                 setTimeout(() => {
@@ -98,7 +114,7 @@ export class AppComponent implements OnInit, OnDestroy {
      */
     rdKeysMsg(msg: rdKeys_t) {
         if (msg.status == USB_CMD_STATUS_OK) {
-            console.log('msg:' + JSON.stringify(msg));
+            console.log(`msg: ${JSON.stringify(msg)}`);
             this.formGroup.controls.linkKey.setValue(msg.linkKey);
             this.formGroup.controls.epid.setValue(msg.epid);
         }
@@ -155,56 +171,6 @@ export class AppComponent implements OnInit, OnDestroy {
         this.startFlag = true;
     }
 
-    /***********************************************************************************************
-     * fn          onContextMenu
-     *
-     * brief
-     *
-     *
-    onContextMenu(event, idx: number) {
-        event.preventDefault();
-        this.contextMenuPosition.x = event.clientX + 'px';
-        this.contextMenuPosition.y = event.clientY + 'px';
-        this.contextMenu.menuData = {idx: idx};
-        this.contextMenu.menu.focusFirstItem('mouse');
-        this.contextMenu.openMenu();
-    }
-    */
-    /***********************************************************************************************
-     * fn          ngOnDestroy
-     *
-     * brief
-     *
-     */
-    ngOnDestroy() {
-        this.serial.slPort.close((err) => {
-            if (err) {
-                console.log(`close err: ${err.message}`);
-            }
-        });
-        this.validNode = false;
-        this.partNum = 0;
-        this.startFlag = true;
-    }
-
-    /***********************************************************************************************
-     * fn          setStatusMsg
-     *
-     * brief
-     *
-     *
-    private setStatusMsg(msg: string) {
-        this.ngZone.run(() => {
-            this.statusMsg = msg;
-        });
-        clearTimeout(this.msgTmo);
-        this.msgTmo = setTimeout(() => {
-            this.ngZone.run(() => {
-                this.statusMsg = '. . . . .';
-            });
-        }, 2000);
-    }
-    */
     /***********************************************************************************************
      * fn          wrKeys
      *
