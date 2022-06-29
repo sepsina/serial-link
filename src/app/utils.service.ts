@@ -61,10 +61,10 @@ export class UtilsService {
 
     public timeStamp() {
         const now = new Date();
-        return `<${now.getHours().toString(10).padStart(2, '0')}:${now
-            .getMinutes()
-            .toString(10)
-            .padStart(2, '0')}:${now.getSeconds().toString(10).padStart(2, '0')}>`;
+        const hours = now.getHours().toString(10).padStart(2, '0');
+        const minutes = now.getMinutes().toString(10).padStart(2, '0');
+        const seconds = now.getSeconds().toString(10).padStart(2, '0');
+        return `<${hours}:${minutes}:${seconds}>`;
     }
 
     public strToByteArr(str: string): number[] {
@@ -138,7 +138,7 @@ export class UtilsService {
         dv.setFloat64(0, extAddr);
         let extHex = [];
         for (let i = 0; i < 8; i++) {
-            extHex[i] = ('0' + dv.getUint8(i).toString(16)).slice(-2);
+            extHex[i] = dv.getUint8(i).toString(16).padStart(2, '0').toUpperCase();
         }
         return extHex.join(':');
     }

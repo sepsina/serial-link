@@ -1,8 +1,8 @@
-import {Component, OnInit} from '@angular/core';
-import {SerialService} from '../serial.service';
-import {EventsService} from '../events.service';
-import {GlobalsService} from '../globals.service';
-import {Validators, FormGroup, FormControl} from '@angular/forms';
+import { Component, OnInit } from '@angular/core';
+import { SerialService } from '../serial.service';
+import { EventsService } from '../events.service';
+import { GlobalsService } from '../globals.service';
+import { Validators, FormGroup, FormControl } from '@angular/forms';
 
 @Component({
     selector: 'app-actuator-010',
@@ -10,6 +10,7 @@ import {Validators, FormGroup, FormControl} from '@angular/forms';
     styleUrls: ['./actuator-010.component.scss'],
 })
 export class Actuator_010_Component implements OnInit {
+
     formGroup: FormGroup;
     minInt = 10;
     maxInt = 60;
@@ -20,23 +21,22 @@ export class Actuator_010_Component implements OnInit {
     repInterval = this.minInt;
     level = this.minLevel;
 
-    constructor(
-        private serial: SerialService,
-        private events: EventsService,
-        private globals: GlobalsService
-    ) {
+    constructor(private serial: SerialService,
+                private events: EventsService,
+                private globals: GlobalsService) {
         //---
     }
 
     ngOnInit(): void {
-        this.events.subscribe('rdNodeDataRsp', (msg: Uint8Array) => {
+
+        this.events.subscribe('rdNodeDataRsp', (msg: Uint8Array)=>{
             let buf = msg.buffer;
             let data = new DataView(buf);
             let idx = 0;
 
             let partNum = data.getUint32(idx, this.globals.LE);
             idx += 4;
-            if (partNum == this.globals.ACTUATOR_010) {
+            if(partNum == this.globals.ACTUATOR_010) {
                 this.repInterval = data.getUint8(idx++);
                 this.state = !!data.getUint8(idx++);
                 this.level = data.getUint8(idx);
@@ -46,7 +46,7 @@ export class Actuator_010_Component implements OnInit {
                 });
             }
         });
-        this.events.subscribe('rdNodeData_0', () => {
+        this.events.subscribe('rdNodeData_0', ()=>{
             this.rdNodeData_0();
         });
 
@@ -76,7 +76,7 @@ export class Actuator_010_Component implements OnInit {
             repInt: this.minInt,
             ltLevel: this.minLevel,
         });
-        setTimeout(() => {
+        setTimeout(()=>{
             this.serial.rdNodeData_0();
         }, 200);
     }
@@ -110,13 +110,13 @@ export class Actuator_010_Component implements OnInit {
      *
      */
     repIntErr() {
-        if (this.formGroup.get('repInt').hasError('required')) {
+        if(this.formGroup.get('repInt').hasError('required')) {
             return 'You must enter a value';
         }
-        if (this.formGroup.get('repInt').hasError('min')) {
+        if(this.formGroup.get('repInt').hasError('min')) {
             return `rep interval must be ${this.minInt} - ${this.maxInt}`;
         }
-        if (this.formGroup.get('repInt').hasError('max')) {
+        if(this.formGroup.get('repInt').hasError('max')) {
             return `rep interval must be ${this.minInt} - ${this.maxInt}`;
         }
     }
@@ -129,7 +129,7 @@ export class Actuator_010_Component implements OnInit {
     onRepIntChange(repInt) {
         // check value and update
         this.repInterval = repInt;
-        console.log('repInt: ' + this.repInterval);
+        console.log(`repInt: ${this.repInterval}`);
     }
 
     /***********************************************************************************************
@@ -139,13 +139,13 @@ export class Actuator_010_Component implements OnInit {
      *
      */
     levelErr() {
-        if (this.formGroup.get('ltLevel').hasError('required')) {
+        if(this.formGroup.get('ltLevel').hasError('required')) {
             return 'You must enter a value';
         }
-        if (this.formGroup.get('ltLevel').hasError('min')) {
+        if(this.formGroup.get('ltLevel').hasError('min')) {
             return `light level must be ${this.minLevel} - ${this.maxLevel}`;
         }
-        if (this.formGroup.get('ltLevel').hasError('max')) {
+        if(this.formGroup.get('ltLevel').hasError('max')) {
             return `light level must be ${this.minLevel} - ${this.maxLevel}`;
         }
     }
@@ -158,6 +158,6 @@ export class Actuator_010_Component implements OnInit {
     onLevelChange(level) {
         // check value and update
         this.level = level;
-        console.log('level: ' + this.level);
+        console.log(`level: ${this.level}`);
     }
 }

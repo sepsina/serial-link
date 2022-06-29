@@ -1,8 +1,8 @@
 //'use strict';
-import {Injectable} from '@angular/core';
-import {EventsService} from './events.service';
-import {GlobalsService} from './globals.service';
-import {UtilsService} from './utils.service';
+import { Injectable, NgZone } from '@angular/core';
+import { EventsService } from './events.service';
+import { GlobalsService } from './globals.service';
+import { UtilsService } from './utils.service';
 
 enum eRxState {
     E_STATE_RX_WAIT_START,
@@ -56,6 +56,7 @@ const CRC_IDX = 4;
     providedIn: 'root',
 })
 export class SerialService {
+
     public searchPortFlag = false;
     validPortFlag = false;
     portOpenFlag = false;
@@ -85,11 +86,10 @@ export class SerialService {
 
     //trash: any;
 
-    constructor(
-        private events: EventsService,
-        private globals: GlobalsService,
-        private utils: UtilsService
-    ) {
+    constructor(private events: EventsService,
+                private globals: GlobalsService,
+                private utils: UtilsService,
+                private ngZone: NgZone) {
         // ---
     }
 
@@ -100,20 +100,27 @@ export class SerialService {
      *
      */
     public listComPorts() {
+
+        if(this.searchPortFlag){
+            return;
+        }
         this.searchPortFlag = true;
         this.validPortFlag = false;
-        if (this.portOpenFlag == true) {
+        if(this.portOpenFlag == true) {
             this.closeComPort();
         }
-        this.SerialPort.list().then((ports) => {
+        this.SerialPort.list().then((ports)=>{
             this.comPorts = ports;
-            if (ports.length) {
+            if(ports.length) {
                 this.portIdx = 0;
-                setTimeout(() => {
+                setTimeout(()=>{
                     this.findComPort();
                 }, 100);
-            } else {
-                this.searchPortFlag = false;
+            }
+            else {
+                this.ngZone.run(()=>{
+                    this.searchPortFlag = false;
+                });
                 console.log('no com ports');
             }
         });
@@ -126,8 +133,9 @@ export class SerialService {
      *
      */
     private findComPort() {
-        if (this.validPortFlag == false) {
-            if (this.portOpenFlag == true) {
+
+        if(this.validPortFlag == false) {
+            if(this.portOpenFlag == true) {
                 this.closeComPort();
             }
             this.portPath = this.comPorts[this.portIdx].path;
@@ -137,40 +145,43 @@ export class SerialService {
                 autoOpen: false,
             };
             this.slPort = new this.SerialPort(this.portPath, portOpt);
-            this.slPort.on('open', () => {
-                this.slPort.on('data', (data) => {
+            this.slPort.on('open', ()=>{
+                this.slPort.on('data', (data)=>{
                     this.slOnData(data);
                 });
             });
-            let openErr = false;
-            this.slPort.open((err) => {
-                if (err) {
-                    openErr = true;
-                    console.log(
-                        `open err on ${this.portPath.replace(/[^a-zA-Z0-9]+/g, '')}: ${err.message}`
-                    );
-                } else {
-                    this.portOpenFlag = true;
-                    if (this.testPortTMO) {
-                        clearTimeout(this.testPortTMO);
+            let done = true;
+            this.portIdx++;
+            if(this.portIdx < this.comPorts.length) {
+                done = false;
+            }
+            this.slPort.open((err)=>{
+                if(err) {
+                    if(done == true) {
+                        this.searchPortFlag = false;
                     }
-                    this.testPortTMO = setTimeout(() => {
-                        this.testPortTMO = null;
+                    else {
+                        setTimeout(()=>{
+                            this.findComPort();
+                        }, 200);
+                    }
+                }
+                else {
+                    this.portOpenFlag = true;
+                    this.testPortTMO = setTimeout(()=>{
                         this.closeComPort();
+                        this.portOpenFlag = false;
+                        if(done == true) {
+                            this.searchPortFlag = false;
+                        }
+                        else {
+                            this.findComPort();
+                        }
                         console.log('test port tmo');
-                    }, 1000);
+                    }, 2000);
                     this.testPortReq();
                 }
             });
-            this.portIdx++;
-            if (this.portIdx < this.comPorts.length) {
-                let tmo = openErr ? 200 : 2000;
-                setTimeout(() => {
-                    this.findComPort();
-                }, tmo);
-            } else {
-                this.searchPortFlag = false;
-            }
         }
     }
 
@@ -181,15 +192,18 @@ export class SerialService {
      *
      */
     closeComPort() {
-        let msg = '';
         this.validPortFlag = false;
+        if(this.portOpenFlag === false){
+            return;
+        }
+        let msg = '';
         this.portOpenFlag = false;
         msg = 'close serial port';
         this.events.publish('logMsg', msg);
         console.log(msg);
-        if (typeof this.slPort.close === 'function') {
-            this.slPort.close((err) => {
-                if (err) {
+        if(typeof this.slPort.close === 'function') {
+            this.slPort.close((err)=>{
+                if(err) {
                     msg = `port close err: ${err.message}`;
                     this.events.publish('logMsg', msg);
                     console.log(msg);
@@ -205,10 +219,12 @@ export class SerialService {
      *
      */
     private slOnData(msg) {
+
         let pkt = new Uint8Array(msg);
-        for (let i = 0; i < pkt.length; i++) {
+
+        for(let i = 0; i < pkt.length; i++) {
             let rxByte = pkt[i];
-            switch (rxByte) {
+            switch(rxByte) {
                 case SL_START_CHAR: {
                     this.msgIdx = 0;
                     this.isEsc = false;
@@ -220,12 +236,12 @@ export class SerialService {
                     break;
                 }
                 case SL_END_CHAR: {
-                    if (this.crc == this.calcCRC) {
+                    if(this.crc == this.calcCRC) {
                         let slMsg: slMsg_t = {
                             type: this.msgType,
                             data: Array.from(this.rxMsg).slice(0, this.msgIdx),
                         };
-                        setTimeout(() => {
+                        setTimeout(()=>{
                             this.processMsg(slMsg);
                         }, 0);
                     }
@@ -233,11 +249,11 @@ export class SerialService {
                     break;
                 }
                 default: {
-                    if (this.isEsc == true) {
+                    if(this.isEsc == true) {
                         rxByte ^= 0x10;
                         this.isEsc = false;
                     }
-                    switch (this.rxState) {
+                    switch(this.rxState) {
                         case eRxState.E_STATE_RX_WAIT_START: {
                             // ---
                             break;
@@ -272,7 +288,7 @@ export class SerialService {
                             break;
                         }
                         case eRxState.E_STATE_RX_WAIT_DATA: {
-                            if (this.msgIdx < this.msgLen) {
+                            if(this.msgIdx < this.msgLen) {
                                 this.rxMsg[this.msgIdx++] = rxByte;
                                 this.calcCRC ^= rxByte;
                             }
@@ -291,24 +307,22 @@ export class SerialService {
      *
      */
     private processMsg(msg: slMsg_t) {
+
         let msgData = new Uint8Array(msg.data);
-        switch (msg.type) {
+        switch(msg.type) {
             case SL_MSG_TESTPORT: {
                 let slMsg = new DataView(msgData.buffer);
                 let idNum = 0;
                 let msgIdx = 0;
                 let msgSeqNum = slMsg.getUint8(msgIdx++);
-                if (msgSeqNum == this.seqNum) {
+                if(msgSeqNum == this.seqNum) {
                     idNum = slMsg.getUint32(msgIdx, LE);
                     msgIdx += 4;
-                    if (idNum === 0x67190110) {
-                        if (this.testPortTMO) {
-                            clearTimeout(this.testPortTMO);
-                            this.testPortTMO = null;
-                        }
+                    if(idNum === 0x67190110) {
+                        clearTimeout(this.testPortTMO);
                         this.validPortFlag = true;
                         this.searchPortFlag = false;
-                        setTimeout(() => {
+                        setTimeout(()=>{
                             this.readPartNum();
                         }, 1000);
                         let msg = `valid device on ${this.portPath.replace(/[^a-zA-Z0-9]+/g, '')}`;
@@ -322,44 +336,45 @@ export class SerialService {
                 let slMsg = new DataView(msgData.buffer);
                 let msgIdx = 0;
                 let msgSeqNum = slMsg.getUint8(msgIdx++);
-                if (msgSeqNum == this.seqNum) {
+                if(msgSeqNum == this.seqNum) {
                     let cmdID = slMsg.getUint8(msgIdx++);
-                    switch (cmdID) {
+                    switch(cmdID) {
                         case USB_CMD_KEEP_AWAKE: {
                             let status = slMsg.getUint8(msgIdx++);
-                            if (status == USB_CMD_STATUS_OK) {
+                            if(status == USB_CMD_STATUS_OK) {
                                 console.log('keep awake ok');
                             }
-                            if (status == USB_CMD_STATUS_FAIL) {
+                            if(status == USB_CMD_STATUS_FAIL) {
                                 console.log('keep awake fail');
                             }
                             break;
                         }
                         case USB_CMD_RD_KEYS: {
                             let status = slMsg.getUint8(msgIdx++);
-                            if (status == USB_CMD_STATUS_OK) {
+                            if(status == USB_CMD_STATUS_OK) {
                                 let rdKeysRsp = {} as rdKeys_t;
                                 rdKeysRsp.status = USB_CMD_STATUS_OK;
                                 let i = 0;
                                 let chrCode = 0;
                                 let linkKey = '';
-                                for (i = 0; i < 16; i++) {
+                                for(i = 0; i < 16; i++) {
                                     chrCode = slMsg.getUint8(msgIdx++);
-                                    if (chrCode != 0) {
+                                    if(chrCode != 0) {
                                         linkKey += String.fromCharCode(chrCode);
                                     }
                                 }
                                 rdKeysRsp.linkKey = linkKey;
                                 let epid = '';
-                                for (i = 0; i < 8; i++) {
+                                for(i = 0; i < 8; i++) {
                                     chrCode = slMsg.getUint8(msgIdx++);
-                                    if (chrCode != 0) {
+                                    if(chrCode != 0) {
                                         epid += String.fromCharCode(chrCode);
                                     }
                                 }
                                 rdKeysRsp.epid = epid;
                                 this.events.publish('rdKeysRsp', rdKeysRsp);
-                            } else {
+                            }
+                            else {
                                 this.events.publish('logMsg', 'read keys fail');
                                 console.log('read keys fail');
                             }
@@ -368,7 +383,7 @@ export class SerialService {
                         case USB_CMD_RD_NODE_DATA_0: {
                             let dataLen = slMsg.getUint8(msgIdx++);
                             let nodeData = new Uint8Array(dataLen);
-                            for (let i = 0; i < dataLen; i++) {
+                            for(let i = 0; i < dataLen; i++) {
                                 nodeData[i] = slMsg.getUint8(msgIdx++);
                             }
                             this.events.publish('rdNodeDataRsp', nodeData);
@@ -379,14 +394,14 @@ export class SerialService {
                             let msg = `${this.utils.timeStamp()}: comm ok`;
                             this.events.publish('logMsg', msg);
                             this.events.publish('readPartNumRsp', partNum);
-                            setTimeout(() => {
+                            setTimeout(()=>{
                                 this.readPartNum();
                             }, 5000);
-                            if (this.validPortTMO) {
+                            if(this.validPortTMO) {
                                 clearTimeout(this.validPortTMO);
                             }
-                            this.validPortTMO = setTimeout(() => {
-                                if (this.portOpenFlag === true) {
+                            this.validPortTMO = setTimeout(()=>{
+                                if(this.portOpenFlag === true) {
                                     this.closeComPort();
                                 }
                             }, 10000);
@@ -415,6 +430,7 @@ export class SerialService {
      *
      */
     private testPortReq() {
+
         let pktBuf = new ArrayBuffer(64);
         let pktData = new Uint8Array(pktBuf);
         let pktView = new DataView(pktBuf);
@@ -435,15 +451,15 @@ export class SerialService {
         let dataLen = msgLen - HEAD_LEN;
         pktView.setUint16(LEN_IDX, dataLen, LE);
         let crc = 0;
-        for (i = 0; i < msgLen; i++) {
+        for(i = 0; i < msgLen; i++) {
             crc ^= pktData[i];
         }
         pktView.setUint8(CRC_IDX, crc);
 
         msgIdx = 0;
         slMsgBuf[msgIdx++] = SL_START_CHAR;
-        for (i = 0; i < msgLen; i++) {
-            if (pktData[i] < 0x10) {
+        for(i = 0; i < msgLen; i++) {
+            if(pktData[i] < 0x10) {
                 pktData[i] ^= 0x10;
                 slMsgBuf[msgIdx++] = SL_ESC_CHAR;
             }
@@ -453,7 +469,7 @@ export class SerialService {
 
         let slMsgLen = msgIdx;
         let slMsg = slMsgBuf.slice(0, slMsgLen);
-        this.slPort.write(slMsg, 'utf8', () => {
+        this.slPort.write(slMsg, 'utf8', ()=>{
             // ---
         });
     }
@@ -542,7 +558,8 @@ export class SerialService {
      *
      */
     public usbCmd(cmdID: number, param: any) {
-        if (this.validPortFlag === false) {
+
+        if(this.validPortFlag === false) {
             return;
         }
         let pktBuf = new ArrayBuffer(1024);
@@ -560,21 +577,23 @@ export class SerialService {
         // cmd data
         pktView.setUint8(msgIdx++, this.seqNum);
         pktView.setUint8(msgIdx++, cmdID);
-        switch (cmdID) {
+        switch(cmdID) {
             case USB_CMD_WR_KEYS: {
-                for (i = 0; i < 16; i++) {
+                for(i = 0; i < 16; i++) {
                     let chrCode = param.linkKey.charCodeAt(i);
-                    if (chrCode) {
+                    if(chrCode) {
                         pktView.setUint8(msgIdx++, chrCode);
-                    } else {
+                    }
+                    else {
                         pktView.setUint8(msgIdx++, 0);
                     }
                 }
-                for (i = 0; i < 8; i++) {
+                for(i = 0; i < 8; i++) {
                     let chrCode = param.epid.charCodeAt(i);
-                    if (chrCode) {
+                    if(chrCode) {
                         pktView.setUint8(msgIdx++, chrCode);
-                    } else {
+                    }
+                    else {
                         pktView.setUint8(msgIdx++, 0);
                     }
                 }
@@ -582,7 +601,7 @@ export class SerialService {
             }
             case USB_CMD_WR_NODE_DATA_0: {
                 let data = new Uint8Array(param.buf);
-                for (i = 0; i < param.buf.byteLength; i++) {
+                for(i = 0; i < param.buf.byteLength; i++) {
                     pktView.setUint8(msgIdx++, data[i]);
                 }
                 break;
@@ -595,15 +614,15 @@ export class SerialService {
         let dataLen = msgLen - HEAD_LEN;
         pktView.setUint16(LEN_IDX, dataLen, LE);
         let crc = 0;
-        for (i = 0; i < msgLen; i++) {
+        for(i = 0; i < msgLen; i++) {
             crc ^= pktData[i];
         }
         pktView.setUint8(CRC_IDX, crc);
 
         msgIdx = 0;
         slMsgBuf[msgIdx++] = SL_START_CHAR;
-        for (i = 0; i < msgLen; i++) {
-            if (pktData[i] < 0x10) {
+        for(i = 0; i < msgLen; i++) {
+            if(pktData[i] < 0x10) {
                 pktData[i] ^= 0x10;
                 slMsgBuf[msgIdx++] = SL_ESC_CHAR;
             }
@@ -613,7 +632,7 @@ export class SerialService {
 
         let slMsgLen = msgIdx;
         let slMsg = slMsgBuf.slice(0, slMsgLen);
-        this.slPort.write(slMsg, 'utf8', () => {
+        this.slPort.write(slMsg, 'utf8', ()=>{
             // ---
         });
     }
