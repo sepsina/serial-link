@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, NgZone } from '@angular/core';
 import { SerialService } from '../serial.service';
 import { EventsService } from '../events.service';
 import { GlobalsService } from '../globals.service';
@@ -11,19 +11,19 @@ import { Validators, FormGroup, FormControl } from '@angular/forms';
 })
 export class Actuator_010_Component implements OnInit {
 
-    formGroup: FormGroup;
     minInt = 10;
     maxInt = 60;
     minLevel = 5;
     maxLevel = 95;
     state = false;
 
-    repInterval = this.minInt;
-    level = this.minLevel;
+    repIntFormCtrl: FormControl;
+    levelFormCtrl: FormControl;
 
     constructor(private serial: SerialService,
                 private events: EventsService,
-                private globals: GlobalsService) {
+                private globals: GlobalsService,
+                private ngZone: NgZone) {
         //---
     }
 
@@ -37,12 +37,10 @@ export class Actuator_010_Component implements OnInit {
             let partNum = data.getUint32(idx, this.globals.LE);
             idx += 4;
             if(partNum == this.globals.ACTUATOR_010) {
-                this.repInterval = data.getUint8(idx++);
-                this.state = !!data.getUint8(idx++);
-                this.level = data.getUint8(idx);
-                this.formGroup.patchValue({
-                    repInt: this.repInterval,
-                    ltLevel: this.level,
+                this.ngZone.run(()=>{
+                    this.repIntFormCtrl.setValue(data.getUint8(idx++));
+                    this.state = !!data.getUint8(idx++);
+                    this.levelFormCtrl.setValue(data.getUint8(idx++));
                 });
             }
         });
@@ -50,18 +48,22 @@ export class Actuator_010_Component implements OnInit {
             this.rdNodeData_0();
         });
 
-        this.formGroup = new FormGroup({
-            repInt: new FormControl(this.repInterval, [
+        this.repIntFormCtrl = new FormControl(
+            this.minInt,
+            [
                 Validators.required,
                 Validators.min(this.minInt),
                 Validators.max(this.maxInt),
-            ]),
-            ltLevel: new FormControl(this.level, [
+            ]
+        );
+        this.levelFormCtrl = new FormControl(
+            this.minLevel,
+            [
                 Validators.required,
                 Validators.min(this.minLevel),
                 Validators.max(this.maxLevel),
-            ]),
-        });
+            ]
+        );
     }
 
     /***********************************************************************************************
@@ -71,11 +73,10 @@ export class Actuator_010_Component implements OnInit {
      *
      */
     rdNodeData_0() {
-        this.repInterval = this.minInt;
-        this.formGroup.patchValue({
-            repInt: this.minInt,
-            ltLevel: this.minLevel,
-        });
+        this.state = !this.state;
+        this.repIntFormCtrl.setValue(this.minInt);
+        this.levelFormCtrl.setValue(this.minLevel);
+
         setTimeout(()=>{
             this.serial.rdNodeData_0();
         }, 200);
@@ -94,11 +95,9 @@ export class Actuator_010_Component implements OnInit {
 
         data.setUint32(idx, this.globals.ACTUATOR_010, this.globals.LE);
         idx += 4;
-        this.repInterval = this.formGroup.get('repInt').value;
-        data.setUint8(idx++, this.repInterval);
+        data.setUint8(idx++, this.repIntFormCtrl.value);
         data.setUint8(idx++, this.state ? 1 : 0);
-        this.level = this.formGroup.get('ltLevel').value;
-        data.setUint8(idx, this.level);
+        data.setUint8(idx++, this.levelFormCtrl.value);
 
         this.serial.wrNodeData_0(buf);
     }
@@ -110,26 +109,15 @@ export class Actuator_010_Component implements OnInit {
      *
      */
     repIntErr() {
-        if(this.formGroup.get('repInt').hasError('required')) {
+        if(this.repIntFormCtrl.hasError('required')) {
             return 'You must enter a value';
         }
-        if(this.formGroup.get('repInt').hasError('min')) {
+        if(this.repIntFormCtrl.hasError('min')) {
             return `rep interval must be ${this.minInt} - ${this.maxInt}`;
         }
-        if(this.formGroup.get('repInt').hasError('max')) {
+        if(this.repIntFormCtrl.hasError('max')) {
             return `rep interval must be ${this.minInt} - ${this.maxInt}`;
         }
-    }
-    /***********************************************************************************************
-     * fn          onRepIntChange
-     *
-     * brief
-     *
-     */
-    onRepIntChange(repInt) {
-        // check value and update
-        this.repInterval = repInt;
-        console.log(`repInt: ${this.repInterval}`);
     }
 
     /***********************************************************************************************
@@ -139,25 +127,31 @@ export class Actuator_010_Component implements OnInit {
      *
      */
     levelErr() {
-        if(this.formGroup.get('ltLevel').hasError('required')) {
+        if(this.levelFormCtrl.hasError('required')) {
             return 'You must enter a value';
         }
-        if(this.formGroup.get('ltLevel').hasError('min')) {
+        if(this.levelFormCtrl.hasError('min')) {
             return `light level must be ${this.minLevel} - ${this.maxLevel}`;
         }
-        if(this.formGroup.get('ltLevel').hasError('max')) {
+        if(this.levelFormCtrl.hasError('max')) {
             return `light level must be ${this.minLevel} - ${this.maxLevel}`;
         }
     }
+
     /***********************************************************************************************
-     * fn          onLevelChange
+     * fn          isInvalid
      *
      * brief
      *
      */
-    onLevelChange(level) {
-        // check value and update
-        this.level = level;
-        console.log(`level: ${this.level}`);
+    isInvalid() {
+        if(this.levelFormCtrl.invalid){
+            return true;
+        }
+        if(this.repIntFormCtrl.invalid){
+            return true;
+        }
+        return false;
     }
+
 }

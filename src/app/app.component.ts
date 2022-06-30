@@ -22,7 +22,6 @@ export class AppComponent implements OnInit, OnDestroy {
     scrollFlag = true;
 
     partNum = 0;
-    //validNode = true;
     startFlag = true;
 
     constructor(public serial: SerialService,
@@ -49,6 +48,7 @@ export class AppComponent implements OnInit, OnDestroy {
      *
      */
     ngOnInit() {
+
         this.formGroup = new FormGroup({
             linkKey: new FormControl(this.linkKey, [
                 Validators.required,
@@ -116,8 +116,10 @@ export class AppComponent implements OnInit, OnDestroy {
     rdKeysMsg(msg: rdKeys_t) {
         if(msg.status == USB_CMD_STATUS_OK) {
             console.log(`msg: ${JSON.stringify(msg)}`);
-            this.formGroup.controls.linkKey.setValue(msg.linkKey);
-            this.formGroup.controls.epid.setValue(msg.epid);
+            this.ngZone.run(()=>{
+                this.formGroup.controls.linkKey.setValue(msg.linkKey);
+                this.formGroup.controls.epid.setValue(msg.epid);
+            });
         }
     }
 

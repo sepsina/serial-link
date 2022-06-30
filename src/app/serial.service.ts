@@ -391,9 +391,8 @@ export class SerialService {
                         }
                         case USB_CMD_READ_PART_NUM: {
                             let partNum = slMsg.getUint32(msgIdx++, this.globals.LE);
-                            let msg = `${this.utils.timeStamp()}: comm ok`;
-                            this.events.publish('logMsg', msg);
                             this.events.publish('readPartNumRsp', partNum);
+                            this.events.publish('logMsg', `${this.utils.timeStamp()}: comm ok`);
                             setTimeout(()=>{
                                 this.readPartNum();
                             }, 5000);
@@ -401,6 +400,7 @@ export class SerialService {
                                 clearTimeout(this.validPortTMO);
                             }
                             this.validPortTMO = setTimeout(()=>{
+                                this.validPortTMO = null;
                                 if(this.portOpenFlag === true) {
                                     this.closeComPort();
                                 }

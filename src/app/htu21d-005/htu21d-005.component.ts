@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, NgZone } from '@angular/core';
 import { SerialService } from '../serial.service';
 import { EventsService } from '../events.service';
 import { GlobalsService } from '../globals.service';
@@ -11,18 +11,19 @@ import { Validators, FormGroup, FormControl } from '@angular/forms';
 })
 export class HTU21D_005_Component implements OnInit {
 
-    formGroup: FormGroup;
     minInt = 5;
     maxInt = 30;
 
     rhFlag = false;
     tempFlag = false;
     batVoltFlag = false;
-    reportInterval = this.minInt;
+
+    repIntFormCtrl: FormControl;
 
     constructor(private serial: SerialService,
                 private events: EventsService,
-                private globals: GlobalsService) {
+                private globals: GlobalsService,
+                private ngZone: NgZone) {
         //---
     }
 
@@ -36,12 +37,11 @@ export class HTU21D_005_Component implements OnInit {
             let partNum = data.getUint32(idx, this.globals.LE);
             idx += 4;
             if(partNum == this.globals.HTU21D_005) {
-                this.rhFlag = !!data.getUint8(idx++);
-                this.tempFlag = !!data.getUint8(idx++);
-                this.batVoltFlag = !!data.getUint8(idx++);
-                this.reportInterval = data.getUint8(idx++);
-                this.formGroup.patchValue({
-                    repInt: this.reportInterval,
+                this.ngZone.run(()=>{
+                    this.rhFlag = !!data.getUint8(idx++);
+                    this.tempFlag = !!data.getUint8(idx++);
+                    this.batVoltFlag = !!data.getUint8(idx++);
+                    this.repIntFormCtrl.setValue(data.getUint8(idx++));
                 });
             }
         });
@@ -49,13 +49,14 @@ export class HTU21D_005_Component implements OnInit {
             this.rdNodeData_0();
         });
 
-        this.formGroup = new FormGroup({
-            repInt: new FormControl(this.reportInterval, [
+        this.repIntFormCtrl = new FormControl(
+            this.minInt,
+            [
                 Validators.required,
                 Validators.min(this.minInt),
                 Validators.max(this.maxInt),
-            ]),
-        });
+            ]
+        );
     }
 
     /***********************************************************************************************
@@ -65,13 +66,11 @@ export class HTU21D_005_Component implements OnInit {
      *
      */
     rdNodeData_0() {
-        this.rhFlag = false;
-        this.tempFlag = false;
-        this.batVoltFlag = false;
-        this.reportInterval = 0;
-        this.formGroup.patchValue({
-            repInt: this.minInt,
-        });
+        this.rhFlag = !this.rhFlag;
+        this.tempFlag = !this.tempFlag;
+        this.batVoltFlag = !this.batVoltFlag;
+        this.repIntFormCtrl.setValue(this.minInt);
+
         setTimeout(()=>{
             this.serial.rdNodeData_0();
         }, 200);
@@ -94,8 +93,7 @@ export class HTU21D_005_Component implements OnInit {
         data.setUint8(idx++, this.rhFlag ? 1 : 0);
         data.setUint8(idx++, this.tempFlag ? 1 : 0);
         data.setUint8(idx++, this.batVoltFlag ? 1 : 0);
-        this.reportInterval = this.formGroup.get('repInt').value;
-        data.setUint8(idx++, this.reportInterval);
+        data.setUint8(idx++, this.repIntFormCtrl.value);
 
         this.serial.wrNodeData_0(buf);
     }
@@ -107,24 +105,27 @@ export class HTU21D_005_Component implements OnInit {
      *
      */
     repIntErr() {
-        if(this.formGroup.get('repInt').hasError('required')) {
+        if(this.repIntFormCtrl.hasError('required')) {
             return 'You must enter a value';
         }
-        if(this.formGroup.get('repInt').hasError('min')) {
+        if(this.repIntFormCtrl.hasError('min')) {
             return `report interval must be ${this.minInt} - ${this.maxInt}`;
         }
-        if(this.formGroup.get('repInt').hasError('max')) {
+        if(this.repIntFormCtrl.hasError('max')) {
             return `report interval must be ${this.minInt} - ${this.maxInt}`;
         }
     }
+
     /***********************************************************************************************
-     * fn          onRepIntChange
+     * fn          isInvalid
      *
      * brief
      *
      */
-    onRepIntChange(repInt) {
-        this.reportInterval = repInt;
-        console.log(`repInt: ${this.reportInterval}`);
+    isInvalid() {
+        if(this.repIntFormCtrl.invalid){
+            return true;
+        }
+        return false;
     }
 }

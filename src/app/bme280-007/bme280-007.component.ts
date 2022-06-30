@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, NgZone } from '@angular/core';
 import { SerialService } from '../serial.service';
 import { EventsService } from '../events.service';
 import { GlobalsService } from '../globals.service';
@@ -24,7 +24,8 @@ export class BME280_007_Component implements OnInit {
 
     constructor(private serial: SerialService,
                 private events: EventsService,
-                private globals: GlobalsService) {
+                private globals: GlobalsService,
+                private ngZone: NgZone) {
         //---
     }
 
@@ -38,13 +39,15 @@ export class BME280_007_Component implements OnInit {
             let partNum = data.getUint32(idx, this.globals.LE);
             idx += 4;
             if(partNum == this.globals.BME280_007) {
-                this.rhFlag = !!data.getUint8(idx++);
-                this.tempFlag = !!data.getUint8(idx++);
-                this.pressFlag = !!data.getUint8(idx++);
-                this.batVoltFlag = !!data.getUint8(idx++);
-                this.reportInterval = data.getUint8(idx++);
-                this.formGroup.patchValue({
-                    repInt: this.reportInterval,
+                this.ngZone.run(()=>{
+                    this.rhFlag = !!data.getUint8(idx++);
+                    this.tempFlag = !!data.getUint8(idx++);
+                    this.pressFlag = !!data.getUint8(idx++);
+                    this.batVoltFlag = !!data.getUint8(idx++);
+                    this.reportInterval = data.getUint8(idx++);
+                    this.formGroup.patchValue({
+                        repInt: this.reportInterval,
+                    });
                 });
             }
         });

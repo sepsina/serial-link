@@ -1,7 +1,7 @@
 <div class="main-container" id="container">
     <div id="serialPort" class="right-center">
         <div class="left-center app-card-title">serial port</div>
-        <button mat-button (click)="this.serial.listComPorts()">
+        <button mat-button (click)="serial.listComPorts()">
             <mat-icon>login</mat-icon>
             Open
         </button>
@@ -11,7 +11,7 @@
         </button>
     </div>
 
-    <div id="secData" class="app-card" *ngIf="this.serial.validPortFlag">
+    <div id="secData" class="app-card" *ngIf="serial.validPortFlag">
         <div class="right-center app-card-toolbar">
             <div class="left-center app-card-title">security</div>
             <button mat-button (click)="readKeys()">
@@ -47,26 +47,26 @@
         </mat-form-field>
     </div>
 
-    <div id="nodeData" class="app-card" *ngIf="this.serial.validPortFlag">
+    <div id="nodeData" class="app-card" *ngIf="serial.validPortFlag">
         <div [ngSwitch]="partNum">
-            <app-zb-bridge *ngSwitchCase="this.globals.ZB_BRIDGE"></app-zb-bridge>
-            <app-htu21d-005 *ngSwitchCase="this.globals.HTU21D_005"></app-htu21d-005>
-            <app-bme280-007 *ngSwitchCase="this.globals.BME280_007"></app-bme280-007>
-            <app-ssr-009 *ngSwitchCase="this.globals.SSR_009"></app-ssr-009>
-            <app-actuator-010 *ngSwitchCase="this.globals.ACTUATOR_010"></app-actuator-010>
-            <app-dbl-sw-008 *ngSwitchCase="this.globals.DBL_SW_008"></app-dbl-sw-008>
+            <app-zb-bridge *ngSwitchCase="globals.ZB_BRIDGE"></app-zb-bridge>
+            <app-htu21d-005 *ngSwitchCase="globals.HTU21D_005"></app-htu21d-005>
+            <app-bme280-007 *ngSwitchCase="globals.BME280_007"></app-bme280-007>
+            <app-ssr-009 *ngSwitchCase="globals.SSR_009"></app-ssr-009>
+            <app-actuator-010 *ngSwitchCase="globals.ACTUATOR_010"></app-actuator-010>
+            <app-dbl-sw-008 *ngSwitchCase="globals.DBL_SW_008"></app-dbl-sw-008>
             <div *ngSwitchDefault class="center-center" style="height: 50px">
                 --- no node data ---
             </div>
         </div>
     </div>
-    <div id="devReset" class="right-center" *ngIf="this.serial.validPortFlag">
+    <div id="devReset" class="right-center" *ngIf="serial.validPortFlag">
         <div class="left-center app-card-title">device</div>
-        <button mat-button (click)="this.serial.softwareRstReq()">
+        <button mat-button (click)="serial.softwareRstReq()">
             <mat-icon>autorenew</mat-icon>
             Soft Reset
         </button>
-        <button mat-button (click)="this.serial.factoryRstReq()">
+        <button mat-button (click)="serial.factoryRstReq()">
             <mat-icon>touch_app</mat-icon>
             Factory Reset
         </button>

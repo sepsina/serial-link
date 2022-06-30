@@ -6,7 +6,7 @@
         <mat-icon>file_download</mat-icon>
         Read
     </button>
-    <button mat-button (click)="wrNodeData_0()" [disabled]="formGroup.invalid">
+    <button mat-button (click)="wrNodeData_0()" [disabled]="isInvalid()">
         <mat-icon>file_upload</mat-icon>
         Save
     </button>
@@ -29,17 +29,18 @@
 
 </div>
 <div class="left-center">
-    <mat-form-field class="form-field" id="reportInterval">
-        <input matInput
-               [max]="this.maxInt"
-               [min]="this.minInt"
-               type="number"
-               placeholder="report interval (seconds)"
-               [formControl]="formGroup.get('repInt')"
-               style="padding-left: 5px"
-               (ngModelChange)="onRepIntChange($event)">
-        <mat-hint align="end">{{this.minInt}} - {{this.maxInt}} seconds</mat-hint>
-        <mat-error *ngIf="formGroup.get('repInt').invalid">{{repIntErr()}}</mat-error>
+    <mat-form-field id="reportInterval">
+        <input
+            matInput
+            type="number"
+            [max]="maxInt"
+            [min]="minInt"
+            placeholder="report interval (seconds)"
+            [formControl]="repIntFormCtrl"
+            style="padding-left: 5px"
+        />
+        <mat-hint align="end">{{minInt}} - {{maxInt}} seconds</mat-hint>
+        <mat-error *ngIf="repIntFormCtrl.invalid">{{repIntErr()}}</mat-error>
     </mat-form-field>
 </div>
 
