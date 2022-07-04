@@ -14,15 +14,13 @@
 
 <div class="left-center">
     <mat-form-field id="reportInterval">
-        <input
-            matInput
-            type="number"
-            [max]="maxInt"
-            [min]="minInt"
-            placeholder="report interval (seconds)"
-            [formControl]="repIntFormCtrl"
-            style="padding-left: 5px"
-        />
+        <input matInput
+               type="number"
+               [max]="maxInt"
+               [min]="minInt"
+               placeholder="report interval (seconds)"
+               [formControl]="repIntFormCtrl"
+               style="padding-left: 5px" />
         <mat-hint align="end">{{minInt}} - {{maxInt}} seconds</mat-hint>
         <mat-error *ngIf="repIntFormCtrl.invalid">{{repIntErr()}}</mat-error>
     </mat-form-field>

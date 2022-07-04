@@ -11,43 +11,43 @@
         </button>
     </div>
 
-    <div id="secData" class="app-card" *ngIf="serial.validPortFlag">
+    <div *ngIf="serial.validPortFlag" id="secData" class="app-card">
         <div class="right-center app-card-toolbar">
             <div class="left-center app-card-title">security</div>
             <button mat-button (click)="readKeys()">
                 <mat-icon>file_download</mat-icon>
                 Read
             </button>
-            <button mat-button (click)="wrKeys()" [disabled]="formGroup.invalid">
+            <button mat-button (click)="wrKeys()" [disabled]="secGroup.invalid">
                 <mat-icon>file_upload</mat-icon>
                 Save
             </button>
         </div>
-        <mat-form-field id="linkKey">
-            <input
-                matInput
-                [maxlength]="16"
-                placeholder="global link-key"
-                [formControl]="formGroup.get('linkKey')"
-                style="padding-left: 5px"
-            />
-            <mat-hint align="end">16 characters</mat-hint>
-            <mat-error *ngIf="formGroup.get('linkKey').invalid">{{ linkKeyErr() }}</mat-error>
-        </mat-form-field>
-        <mat-form-field id="epid">
-            <input
-                matInput
-                [maxlength]="8"
-                placeholder="epid"
-                [formControl]="formGroup.get('epid')"
-                style="padding-left: 5px"
-            />
-            <mat-hint align="end">max 8 characters</mat-hint>
-            <mat-error *ngIf="formGroup.get('epid').invalid">{{ epidErr() }}</mat-error>
-        </mat-form-field>
+        <form [formGroup]="secGroup" id="secGroup">
+            <mat-form-field id="linkKey">
+                <input matInput
+                       type="text"
+                       [maxlength]="16"
+                       placeholder="global link-key"
+                       formControlName='linkKey'
+                       style="padding-left: 5px" />
+                <mat-hint align="end">16 characters</mat-hint>
+                <mat-error *ngIf="secGroup.get('linkKey').invalid">{{linkKeyErr()}}</mat-error>
+            </mat-form-field>
+            <mat-form-field id="epid">
+                <input matInput
+                       type="text"
+                       [maxlength]="8"
+                       placeholder="epid"
+                       formControlName='epid'
+                       style="padding-left: 5px" />
+                <mat-hint align="end">max 8 characters</mat-hint>
+                <mat-error *ngIf="secGroup.get('epid').invalid">{{epidErr()}}</mat-error>
+            </mat-form-field>
+        </form>
     </div>
 
-    <div id="nodeData" class="app-card" *ngIf="serial.validPortFlag">
+    <div *ngIf="serial.validPortFlag" id="nodeData" class="app-card">
         <div [ngSwitch]="partNum">
             <app-zb-bridge *ngSwitchCase="globals.ZB_BRIDGE"></app-zb-bridge>
             <app-htu21d-005 *ngSwitchCase="globals.HTU21D_005"></app-htu21d-005>
@@ -60,7 +60,7 @@
             </div>
         </div>
     </div>
-    <div id="devReset" class="right-center" *ngIf="serial.validPortFlag">
+    <div *ngIf="serial.validPortFlag" id="devReset" class="right-center">
         <div class="left-center app-card-title">device</div>
         <button mat-button (click)="serial.softwareRstReq()">
             <mat-icon>autorenew</mat-icon>
@@ -83,7 +83,7 @@
             </mat-checkbox>
         </div>
         <div id="logList">
-            <div class="log-msg left-center" *ngFor="let msg of logs">
+            <div *ngFor="let msg of logs" class="log-msg left-center">
                 {{ msg }}
             </div>
         </div>

@@ -14,7 +14,7 @@ const USB_CMD_STATUS_OK = 0x00;
 })
 export class AppComponent implements OnInit, OnDestroy {
 
-    formGroup: FormGroup;
+    secGroup: FormGroup;
     linkKey: string = 'link-key-1234567';
     epid: string = 'epid-123';
 
@@ -39,6 +39,7 @@ export class AppComponent implements OnInit, OnDestroy {
      */
     ngOnDestroy() {
         this.serial.closeComPort();
+        this.secGroup.reset();
     }
 
     /***********************************************************************************************
@@ -49,7 +50,7 @@ export class AppComponent implements OnInit, OnDestroy {
      */
     ngOnInit() {
 
-        this.formGroup = new FormGroup({
+        this.secGroup = new FormGroup({
             linkKey: new FormControl(this.linkKey, [
                 Validators.required,
                 Validators.minLength(16),
@@ -57,6 +58,7 @@ export class AppComponent implements OnInit, OnDestroy {
             ]),
             epid: new FormControl(this.epid, [Validators.maxLength(8)]),
         });
+
         this.events.subscribe('rdKeysRsp', (msg)=>{
             this.rdKeysMsg(msg);
         });
@@ -100,8 +102,8 @@ export class AppComponent implements OnInit, OnDestroy {
      */
     readKeys() {
         this.ngZone.run(()=>{
-            this.formGroup.controls.linkKey.setValue('****************');
-            this.formGroup.controls.epid.setValue('********');
+            this.secGroup.get('linkKey').setValue('****************');
+            this.secGroup.get('epid').setValue('********');
         });
         setTimeout(()=>{
             this.serial.rdKeys();
@@ -117,8 +119,8 @@ export class AppComponent implements OnInit, OnDestroy {
         if(msg.status == USB_CMD_STATUS_OK) {
             console.log(`msg: ${JSON.stringify(msg)}`);
             this.ngZone.run(()=>{
-                this.formGroup.controls.linkKey.setValue(msg.linkKey);
-                this.formGroup.controls.epid.setValue(msg.epid);
+                this.secGroup.get('linkKey').setValue(msg.linkKey);
+                this.secGroup.get('epid').setValue(msg.epid);
             });
         }
     }
@@ -130,13 +132,13 @@ export class AppComponent implements OnInit, OnDestroy {
      *
      */
     linkKeyErr() {
-        if(this.formGroup.get('linkKey').hasError('required')) {
+        if(this.secGroup.get('linkKey').hasError('required')) {
             return 'You must enter a value';
         }
-        if(this.formGroup.get('linkKey').hasError('maxlength')) {
+        if(this.secGroup.get('linkKey').hasError('maxlength')) {
             return 'link key must have 16 chars';
         }
-        if(this.formGroup.get('linkKey').hasError('minlength')) {
+        if(this.secGroup.get('linkKey').hasError('minlength')) {
             return 'link key must have 16 chars';
         }
     }
@@ -148,7 +150,7 @@ export class AppComponent implements OnInit, OnDestroy {
      *
      */
     epidErr() {
-        if(this.formGroup.get('epid').hasError('maxlength')) {
+        if(this.secGroup.get('epid').hasError('maxlength')) {
             return 'epid must have less than 8 chars';
         }
     }
@@ -181,8 +183,8 @@ export class AppComponent implements OnInit, OnDestroy {
      *
      */
     wrKeys() {
-        this.serial.wrKeys(this.formGroup.get('linkKey').value,
-                           this.formGroup.get('epid').value);
+        this.serial.wrKeys(this.secGroup.get('linkKey').value,
+                           this.secGroup.get('epid').value);
     }
 
     /***********************************************************************************************
