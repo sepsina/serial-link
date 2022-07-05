@@ -1,15 +1,16 @@
-import { Component, OnInit, NgZone } from '@angular/core';
+import { Component, OnInit, NgZone, OnDestroy } from '@angular/core';
 import { SerialService } from '../serial.service';
 import { EventsService } from '../events.service';
 import { GlobalsService } from '../globals.service';
 import { Validators, FormGroup, FormControl } from '@angular/forms';
+import { Subscription } from 'rxjs';
 
 @Component({
     selector: 'app-htu21d-005',
     templateUrl: './htu21d-005.component.html',
     styleUrls: ['./htu21d-005.component.scss'],
 })
-export class HTU21D_005_Component implements OnInit {
+export class HTU21D_005_Component implements OnInit, OnDestroy {
 
     minInt = 5;
     maxInt = 30;
@@ -19,12 +20,17 @@ export class HTU21D_005_Component implements OnInit {
     batVoltFlag = false;
 
     repIntFormCtrl: FormControl;
+    subscription = new Subscription();
 
     constructor(private serial: SerialService,
                 private events: EventsService,
                 private globals: GlobalsService,
                 private ngZone: NgZone) {
         //---
+    }
+
+    ngOnDestroy(): void {
+        this.subscription.unsubscribe();
     }
 
     ngOnInit(): void {
@@ -57,6 +63,15 @@ export class HTU21D_005_Component implements OnInit {
                 Validators.max(this.maxInt),
             ]
         );
+
+        const intervalSubscription = this.repIntFormCtrl.valueChanges.subscribe((newInt)=>{
+            /*
+            this.ngZone.run(()=>{
+                // ---
+            });
+            */
+        });
+        this.subscription.add(intervalSubscription);
     }
 
     /***********************************************************************************************
@@ -66,10 +81,13 @@ export class HTU21D_005_Component implements OnInit {
      *
      */
     rdNodeData_0() {
-        this.rhFlag = !this.rhFlag;
-        this.tempFlag = !this.tempFlag;
-        this.batVoltFlag = !this.batVoltFlag;
-        this.repIntFormCtrl.setValue(this.minInt);
+
+        this.ngZone.run(()=>{
+            this.rhFlag = !this.rhFlag;
+            this.tempFlag = !this.tempFlag;
+            this.batVoltFlag = !this.batVoltFlag;
+            this.repIntFormCtrl.setValue(this.minInt);
+        });
 
         setTimeout(()=>{
             this.serial.rdNodeData_0();
@@ -127,5 +145,42 @@ export class HTU21D_005_Component implements OnInit {
             return true;
         }
         return false;
+    }
+
+    /***********************************************************************************************
+     * fn          rhFlagChange
+     *
+     * brief
+     *
+     */
+    rhFlagChange(flag) {
+        console.log(`rhFlag: ${flag}`);
+        this.ngZone.run(()=>{
+            this.rhFlag = flag;
+        });
+    }
+    /***********************************************************************************************
+     * fn          tempFlagChange
+     *
+     * brief
+     *
+     */
+     tempFlagChange(flag) {
+        console.log(`tempFlag: ${flag}`);
+        this.ngZone.run(()=>{
+            this.tempFlag = flag;
+        });
+    }
+    /***********************************************************************************************
+     * fn          batVoltFlagChange
+     *
+     * brief
+     *
+     */
+     batVoltFlagChange(flag) {
+        console.log(`batVoltFlag: ${flag}`);
+        this.ngZone.run(()=>{
+            this.batVoltFlag = flag;
+        });
     }
 }

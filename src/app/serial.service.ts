@@ -201,6 +201,7 @@ export class SerialService {
         msg = 'close serial port';
         this.events.publish('logMsg', msg);
         console.log(msg);
+        this.events.publish('closePort', 'close');
         if(typeof this.slPort.close === 'function') {
             this.slPort.close((err)=>{
                 if(err) {

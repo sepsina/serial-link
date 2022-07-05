@@ -16,13 +16,19 @@
         enabled:
     </div>
     <div class="check-box-conteiner">
-        <mat-checkbox [ngModel]="rhFlag" color="primary">
+        <mat-checkbox [ngModel]="rhFlag"
+                      (ngModelChange)="rhFlagChange($event)"
+                      color="primary">
             humidity
         </mat-checkbox>
-        <mat-checkbox [ngModel]="tempFlag" color="primary">
+        <mat-checkbox [ngModel]="tempFlag"
+                      (ngModelChange)="tempFlagChange($event)"
+                      color="primary">
             temperature
         </mat-checkbox>
-        <mat-checkbox [ngModel]="batVoltFlag" color="primary">
+        <mat-checkbox [ngModel]="batVoltFlag"
+                      (ngModelChange)="batVoltFlagChange($event)"
+                      color="primary">
             battery voltage
         </mat-checkbox>
     </div>

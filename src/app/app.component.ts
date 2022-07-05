@@ -70,6 +70,12 @@ export class AppComponent implements OnInit, OnDestroy {
             epid: new FormControl(this.epid, [Validators.maxLength(8)]),
         });
 
+        this.events.subscribe('closePort', (msg)=>{
+            if(msg == 'close'){
+                this.prevPartNum = -1;
+            }
+        });
+
         this.events.subscribe('rdKeysRsp', (msg)=>{
             this.rdKeysMsg(msg);
         });
@@ -94,7 +100,6 @@ export class AppComponent implements OnInit, OnDestroy {
             this.partNum = msg;
             if(this.partNum != this.prevPartNum) {
                 this.prevPartNum = this.partNum;
-                console.log('***---***');
                 this.viewRef.clear();
                 switch(this.partNum) {
                     case this.globals.ZB_BRIDGE: {
@@ -122,18 +127,6 @@ export class AppComponent implements OnInit, OnDestroy {
                 }, 200);
             }
         });
-    }
-
-    /***********************************************************************************************
-     * fn          loadPartComponent
-     *
-     * brief
-     *
-     */
-    loadPartComponent(){
-        if(this.partNum != this.prevPartNum){
-
-        }
 
     }
 
