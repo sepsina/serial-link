@@ -48,7 +48,8 @@
     </div>
 
     <div *ngIf="serial.validPortFlag" id="nodeData" class="app-card">
-        <div [ngSwitch]="partNum">
+        <ng-template #dynamic></ng-template>
+        <!-- <div [ngSwitch]="partNum">
             <app-zb-bridge *ngSwitchCase="globals.ZB_BRIDGE"></app-zb-bridge>
             <app-htu21d-005 *ngSwitchCase="globals.HTU21D_005"></app-htu21d-005>
             <app-bme280-007 *ngSwitchCase="globals.BME280_007"></app-bme280-007>
@@ -58,7 +59,7 @@
             <div *ngSwitchDefault class="center-center" style="height: 50px">
                 --- no node data ---
             </div>
-        </div>
+        </div> -->
     </div>
     <div *ngIf="serial.validPortFlag" id="devReset" class="right-center">
         <div class="left-center app-card-title">device</div>
