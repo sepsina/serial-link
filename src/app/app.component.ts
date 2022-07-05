@@ -21,7 +21,7 @@ const USB_CMD_STATUS_OK = 0x00;
 })
 export class AppComponent implements OnInit, OnDestroy {
 
-    @ViewChild('dynamic', {read: ViewContainerRef}) private viewRef: ViewContainerRef;
+    @ViewChild('dynamic', {read: ViewContainerRef}) viewRef: ViewContainerRef;
 
     secGroup: FormGroup;
     linkKey: string = 'link-key-1234567';
@@ -98,13 +98,13 @@ export class AppComponent implements OnInit, OnDestroy {
                 this.viewRef.clear();
                 switch(this.partNum) {
                     case this.globals.ZB_BRIDGE: {
-                        const componentFactory = this.cfr.resolveComponentFactory(ZB_Bridge_Component);
-                        this.viewRef.createComponent(componentFactory);
+                        const bridgeFactory = this.cfr.resolveComponentFactory(ZB_Bridge_Component);
+                        this.viewRef.createComponent(bridgeFactory);
                         break;
                     }
                     case this.globals.HTU21D_005: {
-                        const componentFactory = this.cfr.resolveComponentFactory(HTU21D_005_Component);
-                        this.viewRef.createComponent(componentFactory);
+                        const htuFactory = this.cfr.resolveComponentFactory(HTU21D_005_Component);
+                        this.viewRef.createComponent(htuFactory);
                         break;
                     }
                     default:
