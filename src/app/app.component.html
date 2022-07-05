@@ -78,7 +78,10 @@
                 <mat-icon>delete_forever</mat-icon>
                 Clear
             </button>
-            <mat-checkbox id="cbScroll" [(ngModel)]="scrollFlag" color="primary">
+            <mat-checkbox id="cbScroll"
+                          [ngModel]="scrollFlag"
+                          (ngModelChange)="autoScrollChange($event)"
+                          color="primary">
                 autoscroll
             </mat-checkbox>
         </div>

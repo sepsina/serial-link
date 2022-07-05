@@ -95,6 +95,20 @@ export class AppComponent implements OnInit, OnDestroy {
     }
 
     /***********************************************************************************************
+     * fn          autoScroll
+     *
+     * brief
+     *
+     */
+    autoScrollChange(scroll) {
+        console.log(scroll);
+        this.scrollFlag = scroll;
+        if(scroll == true) {
+            let logsDiv = document.getElementById('logList');
+            logsDiv.scrollTop = logsDiv.scrollHeight;
+        }
+    }
+    /***********************************************************************************************
      * fn          readKeys
      *
      * brief
