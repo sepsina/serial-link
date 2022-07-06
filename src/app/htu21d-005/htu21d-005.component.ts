@@ -1,4 +1,4 @@
-import { Component, OnInit, NgZone, OnDestroy } from '@angular/core';
+import { Component, OnInit, NgZone, OnDestroy, ApplicationRef } from '@angular/core';
 import { SerialService } from '../serial.service';
 import { EventsService } from '../events.service';
 import { GlobalsService } from '../globals.service';
@@ -25,7 +25,8 @@ export class HTU21D_005_Component implements OnInit, OnDestroy {
     constructor(private serial: SerialService,
                 private events: EventsService,
                 private globals: GlobalsService,
-                private ngZone: NgZone) {
+                private ngZone: NgZone,
+                private appRef: ApplicationRef) {
         //---
     }
 
@@ -56,22 +57,17 @@ export class HTU21D_005_Component implements OnInit, OnDestroy {
         });
 
         this.repIntFormCtrl = new FormControl(
-            this.minInt,
-            [
+            this.minInt, [
                 Validators.required,
                 Validators.min(this.minInt),
-                Validators.max(this.maxInt),
+                Validators.max(this.maxInt)
             ]
         );
-
-        const intervalSubscription = this.repIntFormCtrl.valueChanges.subscribe((newInt)=>{
-            /*
-            this.ngZone.run(()=>{
-                // ---
-            });
-            */
+        const repIntSubscription = this.repIntFormCtrl.valueChanges.subscribe((newInt)=>{
+            this.repIntFormCtrl.markAsTouched();
+            this.appRef.tick();
         });
-        this.subscription.add(intervalSubscription);
+        this.subscription.add(repIntSubscription);
     }
 
     /***********************************************************************************************
@@ -154,7 +150,6 @@ export class HTU21D_005_Component implements OnInit, OnDestroy {
      *
      */
     rhFlagChange(flag) {
-        console.log(`rhFlag: ${flag}`);
         this.ngZone.run(()=>{
             this.rhFlag = flag;
         });
@@ -166,7 +161,6 @@ export class HTU21D_005_Component implements OnInit, OnDestroy {
      *
      */
      tempFlagChange(flag) {
-        console.log(`tempFlag: ${flag}`);
         this.ngZone.run(()=>{
             this.tempFlag = flag;
         });
@@ -178,9 +172,9 @@ export class HTU21D_005_Component implements OnInit, OnDestroy {
      *
      */
      batVoltFlagChange(flag) {
-        console.log(`batVoltFlag: ${flag}`);
         this.ngZone.run(()=>{
             this.batVoltFlag = flag;
         });
     }
+
 }

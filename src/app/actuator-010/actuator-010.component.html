@@ -17,7 +17,9 @@
         light:
     </div>
     <div class="check-box-conteiner">
-        <mat-checkbox [(ngModel)]="state" color="primary"></mat-checkbox>
+        <mat-checkbox [ngModel]="state"
+                      (ngModelChange)="stateChange($event)"
+                      color="primary"></mat-checkbox>
     </div>
 </div>
 

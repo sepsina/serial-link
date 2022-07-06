@@ -18,33 +18,35 @@
                 <mat-icon>file_download</mat-icon>
                 Read
             </button>
-            <button mat-button (click)="wrKeys()" [disabled]="secGroup.invalid">
+            <button mat-button (click)="wrKeys()" [disabled]="!isSecValid()">
                 <mat-icon>file_upload</mat-icon>
                 Save
             </button>
         </div>
-        <form [formGroup]="secGroup" id="secGroup">
+        <div id="secGroup">
             <mat-form-field id="linkKey">
                 <input matInput
                        type="text"
                        [maxlength]="16"
                        placeholder="global link-key"
-                       formControlName='linkKey'
-                       style="padding-left: 5px" />
+                       [formControl]='linkKeyFormCtrl'
+                       style="padding-left: 5px"
+                       autocomplete="off">
                 <mat-hint align="end">16 characters</mat-hint>
-                <mat-error *ngIf="secGroup.get('linkKey').invalid">{{linkKeyErr()}}</mat-error>
+                <mat-error *ngIf="linkKeyFormCtrl.invalid">{{linkKeyErr()}}</mat-error>
             </mat-form-field>
             <mat-form-field id="epid">
                 <input matInput
                        type="text"
                        [maxlength]="8"
                        placeholder="epid"
-                       formControlName='epid'
-                       style="padding-left: 5px" />
+                       [formControl]='epidFormCtrl'
+                       style="padding-left: 5px"
+                       autocomplete="off">
                 <mat-hint align="end">max 8 characters</mat-hint>
-                <mat-error *ngIf="secGroup.get('epid').invalid">{{epidErr()}}</mat-error>
+                <mat-error *ngIf="epidFormCtrl">{{epidErr()}}</mat-error>
             </mat-form-field>
-        </form>
+        </div>
     </div>
 
     <div *ngIf="serial.validPortFlag" id="nodeData" class="app-card">

@@ -1,15 +1,16 @@
-import { Component, OnInit, NgZone } from '@angular/core';
+import { Component, OnInit, NgZone, OnDestroy, ApplicationRef } from '@angular/core';
 import { SerialService } from '../serial.service';
 import { EventsService } from '../events.service';
 import { GlobalsService } from '../globals.service';
 import { Validators, FormGroup, FormControl } from '@angular/forms';
+import { Subscription } from 'rxjs';
 
 @Component({
     selector: 'app-actuator-010',
     templateUrl: './actuator-010.component.html',
     styleUrls: ['./actuator-010.component.scss'],
 })
-export class Actuator_010_Component implements OnInit {
+export class Actuator_010_Component implements OnInit, OnDestroy {
 
     minInt = 10;
     maxInt = 60;
@@ -19,12 +20,18 @@ export class Actuator_010_Component implements OnInit {
 
     repIntFormCtrl: FormControl;
     levelFormCtrl: FormControl;
+    subscription = new Subscription();
 
     constructor(private serial: SerialService,
                 private events: EventsService,
                 private globals: GlobalsService,
-                private ngZone: NgZone) {
+                private ngZone: NgZone,
+                private appRef: ApplicationRef) {
         //---
+    }
+
+    ngOnDestroy(): void {
+        this.subscription.unsubscribe();
     }
 
     ngOnInit(): void {
@@ -56,6 +63,12 @@ export class Actuator_010_Component implements OnInit {
                 Validators.max(this.maxInt),
             ]
         );
+        const repIntSubscription = this.repIntFormCtrl.valueChanges.subscribe((newInt)=>{
+            this.repIntFormCtrl.markAsTouched();
+            this.appRef.tick();
+        });
+        this.subscription.add(repIntSubscription);
+
         this.levelFormCtrl = new FormControl(
             this.minLevel,
             [
@@ -64,6 +77,11 @@ export class Actuator_010_Component implements OnInit {
                 Validators.max(this.maxLevel),
             ]
         );
+        const levelSubscription = this.levelFormCtrl.valueChanges.subscribe((level)=>{
+            this.levelFormCtrl.markAsTouched();
+            this.appRef.tick();
+        });
+        this.subscription.add(levelSubscription);
     }
 
     /***********************************************************************************************
@@ -73,9 +91,12 @@ export class Actuator_010_Component implements OnInit {
      *
      */
     rdNodeData_0() {
-        this.state = !this.state;
-        this.repIntFormCtrl.setValue(this.minInt);
-        this.levelFormCtrl.setValue(this.minLevel);
+
+        this.ngZone.run(()=>{
+            this.state = !this.state;
+            this.repIntFormCtrl.setValue(this.minInt);
+            this.levelFormCtrl.setValue(this.minLevel);
+        });
 
         setTimeout(()=>{
             this.serial.rdNodeData_0();
@@ -89,6 +110,7 @@ export class Actuator_010_Component implements OnInit {
      *
      */
     wrNodeData_0() {
+
         let buf = new ArrayBuffer(7);
         let data = new DataView(buf);
         let idx = 0;
@@ -136,6 +158,18 @@ export class Actuator_010_Component implements OnInit {
         if(this.levelFormCtrl.hasError('max')) {
             return `light level must be ${this.minLevel} - ${this.maxLevel}`;
         }
+    }
+
+    /***********************************************************************************************
+     * fn          stateChange
+     *
+     * brief
+     *
+     */
+     stateChange(state) {
+        this.ngZone.run(()=>{
+            this.state = state;
+        });
     }
 
     /***********************************************************************************************

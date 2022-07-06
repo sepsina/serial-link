@@ -1,27 +1,34 @@
-import { Component, OnInit, NgZone } from '@angular/core';
+import { Component, OnInit, NgZone, OnDestroy, ApplicationRef } from '@angular/core';
 import { SerialService } from '../serial.service';
 import { EventsService } from '../events.service';
 import { GlobalsService } from '../globals.service';
 import { Validators, FormGroup, FormControl } from '@angular/forms';
+import { Subscription } from 'rxjs';
 
 @Component({
     selector: 'app-dbl-sw-008',
     templateUrl: './dbl-sw-008.component.html',
     styleUrls: ['./dbl-sw-008.component.scss'],
 })
-export class DBL_SW_008_Component implements OnInit {
+export class DBL_SW_008_Component implements OnInit, OnDestroy {
 
     minInt = 10;
     maxInt = 60;
 
     batVoltFlag = false;
     repIntFormCtrl: FormControl;
+    subscription = new Subscription();
 
     constructor(private serial: SerialService,
                 private events: EventsService,
                 private globals: GlobalsService,
-                private ngZone: NgZone) {
+                private ngZone: NgZone,
+                private appRef: ApplicationRef) {
         //---
+    }
+
+    ngOnDestroy(): void {
+        this.subscription.unsubscribe();
     }
 
     ngOnInit(): void {
@@ -52,6 +59,12 @@ export class DBL_SW_008_Component implements OnInit {
                 Validators.max(this.maxInt),
             ]
         );
+        const repIntSubscription = this.repIntFormCtrl.valueChanges.subscribe((newInt)=>{
+            console.log('***---***');
+            this.repIntFormCtrl.markAsTouched();
+            this.appRef.tick();
+        });
+        this.subscription.add(repIntSubscription);
     }
 
     /***********************************************************************************************
@@ -61,12 +74,15 @@ export class DBL_SW_008_Component implements OnInit {
      *
      */
     rdNodeData_0() {
-        this.batVoltFlag = false;
-        this.repIntFormCtrl.setValue(this.minInt);
+
+        this.ngZone.run(()=>{
+            this.batVoltFlag = !this.batVoltFlag;
+            this.repIntFormCtrl.setValue(this.minInt);
+        });
 
         setTimeout(()=>{
             this.serial.rdNodeData_0();
-        }, 200);
+        }, 300);
     }
 
     /***********************************************************************************************
@@ -105,6 +121,18 @@ export class DBL_SW_008_Component implements OnInit {
         if(this.repIntFormCtrl.hasError('max')) {
             return `report interval must be ${this.minInt} - ${this.maxInt}`;
         }
+    }
+
+    /***********************************************************************************************
+     * fn          batVoltFlagChange
+     *
+     * brief
+     *
+     */
+     batVoltFlagChange(flag) {
+        this.ngZone.run(()=>{
+            this.batVoltFlag = flag;
+        });
     }
 
     /***********************************************************************************************

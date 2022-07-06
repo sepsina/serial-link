@@ -1,25 +1,33 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy, NgZone, ApplicationRef } from '@angular/core';
 import { SerialService } from '../serial.service';
 import { EventsService } from '../events.service';
 import { GlobalsService } from '../globals.service';
 import { Validators, FormGroup, FormControl } from '@angular/forms';
+import { Subscription } from 'rxjs';
 
 @Component({
     selector: 'app-ssr-009',
     templateUrl: './ssr-009.component.html',
     styleUrls: ['./ssr-009.component.scss'],
 })
-export class SSR_009_Component implements OnInit {
+export class SSR_009_Component implements OnInit, OnDestroy {
 
     minInt = 10;
     maxInt = 60;
 
     repIntFormCtrl: FormControl;
+    subscription = new Subscription();
 
     constructor(private serial: SerialService,
                 private events: EventsService,
-                private globals: GlobalsService) {
+                private globals: GlobalsService,
+                private ngZone: NgZone,
+                private appRef: ApplicationRef) {
         //---
+    }
+
+    ngOnDestroy(): void {
+        this.subscription.unsubscribe();
     }
 
     ngOnInit(): void {
@@ -47,6 +55,11 @@ export class SSR_009_Component implements OnInit {
                 Validators.max(this.maxInt),
             ]
         );
+        const repIntSubscription = this.repIntFormCtrl.valueChanges.subscribe((newInt)=>{
+            this.repIntFormCtrl.markAsTouched();
+            this.appRef.tick();
+        });
+        this.subscription.add(repIntSubscription);
     }
 
     /***********************************************************************************************
@@ -56,7 +69,11 @@ export class SSR_009_Component implements OnInit {
      *
      */
     rdNodeData_0() {
-        this.repIntFormCtrl.setValue(this.minInt);
+
+        this.ngZone.run(()=>{
+            this.repIntFormCtrl.setValue(this.minInt);
+        });
+
         setTimeout(()=>{
             this.serial.rdNodeData_0();
         }, 200);

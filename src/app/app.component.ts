@@ -10,6 +10,7 @@ import { SSR_009_Component } from './ssr-009/ssr-009.component';
 import { Actuator_010_Component } from './actuator-010/actuator-010.component';
 import { DBL_SW_008_Component } from './dbl-sw-008/dbl-sw-008.component';
 import { ZB_Bridge_Component } from './zb-bridge/zb-bridge.component';
+import { Subscription } from 'rxjs';
 
 const USB_CMD_STATUS_OK = 0x00;
 //const USB_CMD_STATUS_FAIL = 0x01;
@@ -23,9 +24,9 @@ export class AppComponent implements OnInit, OnDestroy {
 
     @ViewChild('dynamic', {read: ViewContainerRef}) viewRef: ViewContainerRef;
 
-    secGroup: FormGroup;
-    linkKey: string = 'link-key-1234567';
-    epid: string = 'epid-123';
+    linkKeyFormCtrl: FormControl;
+    epidFormCtrl: FormControl;
+    subscription = new Subscription();
 
     logs: string[] = [];
     scrollFlag = true;
@@ -50,7 +51,7 @@ export class AppComponent implements OnInit, OnDestroy {
      */
     ngOnDestroy() {
         this.serial.closeComPort();
-        this.secGroup.reset();
+        this.subscription.unsubscribe();
     }
 
     /***********************************************************************************************
@@ -61,14 +62,29 @@ export class AppComponent implements OnInit, OnDestroy {
      */
     ngOnInit() {
 
-        this.secGroup = new FormGroup({
-            linkKey: new FormControl(this.linkKey, [
+        this.linkKeyFormCtrl = new FormControl(
+            'link-key-1234567',
+            [
                 Validators.required,
                 Validators.minLength(16),
                 Validators.maxLength(16),
-            ]),
-            epid: new FormControl(this.epid, [Validators.maxLength(8)]),
+            ]
+        )
+        const linkKeySubscription = this.linkKeyFormCtrl.valueChanges.subscribe((key)=>{
+            this.linkKeyFormCtrl.markAsTouched();
         });
+        this.subscription.add(linkKeySubscription);
+
+        this.epidFormCtrl = new FormControl(
+            'epid-123',
+            [
+                Validators.maxLength(8)
+            ]
+        );
+        const epidSubscription = this.epidFormCtrl.valueChanges.subscribe((epid)=>{
+            this.epidFormCtrl.markAsTouched();
+        });
+        this.subscription.add(epidSubscription);
 
         this.events.subscribe('closePort', (msg)=>{
             if(msg == 'close'){
@@ -103,13 +119,28 @@ export class AppComponent implements OnInit, OnDestroy {
                 this.viewRef.clear();
                 switch(this.partNum) {
                     case this.globals.ZB_BRIDGE: {
-                        const bridgeFactory = this.cfr.resolveComponentFactory(ZB_Bridge_Component);
-                        this.viewRef.createComponent(bridgeFactory);
+                        const factory = this.cfr.resolveComponentFactory(ZB_Bridge_Component);
+                        this.viewRef.createComponent(factory);
                         break;
                     }
                     case this.globals.HTU21D_005: {
-                        const htuFactory = this.cfr.resolveComponentFactory(HTU21D_005_Component);
-                        this.viewRef.createComponent(htuFactory);
+                        const factory = this.cfr.resolveComponentFactory(HTU21D_005_Component);
+                        this.viewRef.createComponent(factory);
+                        break;
+                    }
+                    case this.globals.DBL_SW_008: {
+                        const factory = this.cfr.resolveComponentFactory(DBL_SW_008_Component);
+                        this.viewRef.createComponent(factory);
+                        break;
+                    }
+                    case this.globals.ACTUATOR_010: {
+                        const factory = this.cfr.resolveComponentFactory(Actuator_010_Component);
+                        this.viewRef.createComponent(factory);
+                        break;
+                    }
+                    case this.globals.SSR_009: {
+                        const factory = this.cfr.resolveComponentFactory(SSR_009_Component);
+                        this.viewRef.createComponent(factory);
                         break;
                     }
                     default:
@@ -152,8 +183,8 @@ export class AppComponent implements OnInit, OnDestroy {
      */
     readKeys() {
         this.ngZone.run(()=>{
-            this.secGroup.get('linkKey').setValue('****************');
-            this.secGroup.get('epid').setValue('********');
+            this.linkKeyFormCtrl.setValue('****************');
+            this.epidFormCtrl.setValue('********');
         });
         setTimeout(()=>{
             this.serial.rdKeys();
@@ -169,8 +200,8 @@ export class AppComponent implements OnInit, OnDestroy {
         if(msg.status == USB_CMD_STATUS_OK) {
             console.log(`msg: ${JSON.stringify(msg)}`);
             this.ngZone.run(()=>{
-                this.secGroup.get('linkKey').setValue(msg.linkKey);
-                this.secGroup.get('epid').setValue(msg.epid);
+                this.linkKeyFormCtrl.setValue(msg.linkKey);
+                this.epidFormCtrl.setValue(msg.epid);
             });
         }
     }
@@ -182,13 +213,13 @@ export class AppComponent implements OnInit, OnDestroy {
      *
      */
     linkKeyErr() {
-        if(this.secGroup.get('linkKey').hasError('required')) {
+        if(this.linkKeyFormCtrl.hasError('required')) {
             return 'You must enter a value';
         }
-        if(this.secGroup.get('linkKey').hasError('maxlength')) {
+        if(this.linkKeyFormCtrl.hasError('maxlength')) {
             return 'link key must have 16 chars';
         }
-        if(this.secGroup.get('linkKey').hasError('minlength')) {
+        if(this.linkKeyFormCtrl.hasError('minlength')) {
             return 'link key must have 16 chars';
         }
     }
@@ -200,7 +231,7 @@ export class AppComponent implements OnInit, OnDestroy {
      *
      */
     epidErr() {
-        if(this.secGroup.get('epid').hasError('maxlength')) {
+        if(this.epidFormCtrl.hasError('maxlength')) {
             return 'epid must have less than 8 chars';
         }
     }
@@ -233,8 +264,8 @@ export class AppComponent implements OnInit, OnDestroy {
      *
      */
     wrKeys() {
-        this.serial.wrKeys(this.secGroup.get('linkKey').value,
-                           this.secGroup.get('epid').value);
+        this.serial.wrKeys(this.linkKeyFormCtrl.value,
+                           this.epidFormCtrl.value);
     }
 
     /***********************************************************************************************
@@ -245,5 +276,21 @@ export class AppComponent implements OnInit, OnDestroy {
      */
     clearLogs() {
         this.logs = [];
+    }
+
+    /***********************************************************************************************
+     * fn          clearLogs
+     *
+     * brief
+     *
+     */
+    isSecValid() {
+        if(this.linkKeyFormCtrl.invalid){
+            return false;
+        }
+        if(this.epidFormCtrl.invalid){
+            return false;
+        }
+        return true;
     }
 }
